@@ -32,7 +32,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v1
         with:
-          files: target/wasm32-unknown-unknown/release/sea_of_stars_demo_autosplitter.wasm
+          files: target/wasm32-unknown-unknown/release/sea_of_stars_autosplitter.wasm
           name: Latest
           tag_name: latest
           body: This contains the latest version of the auto splitter.
