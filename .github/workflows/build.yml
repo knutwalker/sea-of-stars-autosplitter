@@ -1,0 +1,71 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Commit
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Build
+        run: |
+          cargo b --locked
+
+      - name: Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: target/wasm32-unknown-unknown/release/sea_of_stars_demo_autosplitter.wasm
+          name: Latest
+          tag_name: latest
+          body: This contains the latest version of the auto splitter.
+          generate_release_notes: true
+          append_body: true
+
+  clippy:
+    name: Check clippy lints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Commit
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: hecrj/setup-rust-action@v1
+        with:
+          components: clippy
+          targets: wasm32-unknown-unknown
+
+      - name: Run Clippy
+        run: cargo clippy --all-features
+
+  format:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Commit
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: hecrj/setup-rust-action@v1
+        with:
+          components: rustfmt
+
+      - name: Run cargo fmt
+        run: cargo fmt -- --check || true

@@ -1,0 +1,37 @@
+[package]
+name = "sea-of-stars-autosplitter"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+asr = { git = "https://github.com/LiveSplit/asr", features = [
+    # "alloc", # Working with allocations.
+    "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
+    # "flags", # Working with bit flags.
+    # "float-vars", # Setting floating point variables.
+    # "float-vars-small", # Setting floating point variables (small binary size).
+    # "integer-vars", # Setting integer variables.
+    # "signature", # Scanning signatures.
+    # "wasi-no-std", # Support for no_std on WASI.
+    "unity", # Accessing games using the Unity engine.
+    # "gba", # Accessing Game Boy Advance emulators.
+    # "genesis", # Accessing Genesis emulators.
+    # "ps1", # Accessing PlayStation emulators.
+] }
+
+paste = "1.0.14"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true
+
+[profile.release.build-override]
+opt-level = 0
