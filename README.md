@@ -9,6 +9,12 @@ The latest version of the auto splitter can be downloaded from:
     https://github.com/knutwalker/sea-of-stars-autosplitter/releases/download/latest/sea_of_stars_autosplitter.wasm
 
 
+## Splits
+
+The Autosplitter starts when a character is selected and splits on every boss.
+Load times can be removed in the settings.
+
+
 ## Compilation
 
 This auto splitter is written in Rust. In order to compile it, you need to
