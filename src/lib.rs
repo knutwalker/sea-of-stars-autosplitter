@@ -77,7 +77,6 @@ pub struct Settings {
 
 #[derive(Debug)]
 enum Action {
-    Reset,
     Start,
     Split,
     Pause,
@@ -119,20 +118,19 @@ impl Progress {
 
     fn check_encounter(&mut self, data: &Data<'_>) -> Option<bool> {
         match self.encounter {
-            Some(enc) => {
-                let done = match data.resolve_encounter(enc) {
-                    Some(enc) if enc.done => true,
-                    Some(_) => false,
-                    None => true,
-                };
-                if done {
+            Some(enc) => match data.resolve_encounter(enc) {
+                Some(enc) if enc.done => {
                     self.encounter = None;
                     return Some(true);
                 }
-            }
+                Some(_) => {}
+                None => {
+                    self.encounter = None;
+                }
+            },
             None => {
                 let (address, encounter) = data.encounter()?;
-                if encounter.boss {
+                if encounter.boss && !encounter.done {
                     self.encounter = Some(address);
                 }
             }
@@ -152,10 +150,6 @@ impl Settings {
 
 fn act(action: Action) {
     match action {
-        Action::Reset if timer::state() == TimerState::Ended => {
-            log!("Resetting timer");
-            timer::reset();
-        }
         Action::Start if timer::state() != TimerState::Running => {
             log!("Starting timer");
             timer::start();
