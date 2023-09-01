@@ -71,16 +71,11 @@ async fn main() {
                     match timer::state() {
                         TimerState::NotRunning => {
                             let start = progress.start(&data);
-                            if let Some(action) = start {
-                                act(action);
-                            }
+                            act(start, &settings);
                         }
                         TimerState::Running => {
-                            if let Some(action) = progress.act(&data).filter(|o| settings.filter(o))
-                            {
-                                log!("Decided on an action: {action:?}");
-                                act(action);
-                            }
+                            let action = progress.act(&data);
+                            act(action, &settings);
                         }
                         _ => {}
                     }
@@ -93,8 +88,17 @@ async fn main() {
 
 #[derive(Debug, asr::user_settings::Settings)]
 pub struct Settings {
-    /// Stop game timer during loads
+    /// Stop game timer during loads (load remover)
+    #[default = true]
     remove_loads: bool,
+
+    /// Start splitting on character select
+    #[default = true]
+    start: bool,
+
+    /// Split on finished boss encounters
+    #[default = true]
+    split: bool,
 }
 
 #[derive(Debug)]
@@ -159,29 +163,33 @@ impl Settings {
     fn filter(&self, action: &Action) -> bool {
         match action {
             Action::Pause | Action::Resume => self.remove_loads,
-            _ => true,
+            Action::Start => self.start,
+            Action::Split => self.split,
         }
     }
 }
 
-fn act(action: Action) {
-    match action {
-        Action::Start if timer::state() != TimerState::Running => {
-            log!("Starting timer");
-            timer::start();
+fn act(action: Option<Action>, settings: &Settings) {
+    if let Some(action) = action.filter(|o| settings.filter(o)) {
+        log!("Decided on an action: {action:?}");
+        match (action, timer::state() == TimerState::Running) {
+            (Action::Start, false) => {
+                log!("Starting timer");
+                timer::start();
+            }
+            (Action::Split, true) => {
+                log!("Splitting");
+                timer::split();
+            }
+            (Action::Pause, true) => {
+                log!("Pause game time");
+                timer::pause_game_time();
+            }
+            (Action::Resume, true) => {
+                log!("Resume game time");
+                timer::resume_game_time();
+            }
+            _ => {}
         }
-        Action::Split => {
-            log!("Splitting");
-            timer::split();
-        }
-        Action::Pause => {
-            log!("Pause game time");
-            timer::pause_game_time();
-        }
-        Action::Resume => {
-            log!("Resume game time");
-            timer::resume_game_time();
-        }
-        _ => {}
     }
 }
