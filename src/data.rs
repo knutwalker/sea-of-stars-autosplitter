@@ -75,7 +75,7 @@ struct CharacterSelectionScreen {
     selected: bool,
 }
 
-#[derive(Class)]
+#[derive(Class, Debug)]
 pub struct Encounter {
     #[rename = "encounterDone"]
     pub done: bool,
@@ -86,7 +86,6 @@ pub struct Encounter {
 impl<'a> Data<'a> {
     pub async fn new(process: &'a Process) -> Data<'a> {
         let module = Module::wait_attach(process, Version::V2020).await;
-        log!("attached to module");
         let image = module.wait_get_default_image(process).await;
         log!("Attached to the game");
 
@@ -105,7 +104,10 @@ impl<'a> Data<'a> {
                     .wait_get_static_instance(process, &module, "instance")
                     .await;
 
-                log!(concat!("found ", stringify!($cls), " at {}"), address);
+                log!(
+                    concat!("found ", stringify!($cls), " instance at {}"),
+                    address
+                );
 
                 Singleton { binding, address }
             }};

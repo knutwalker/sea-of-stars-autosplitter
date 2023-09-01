@@ -9,6 +9,7 @@ use asr::{
 };
 
 #[cfg(debug_assertions)]
+#[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {{
         let mut buf = ::asr::arrayvec::ArrayString::<1024>::new();
@@ -21,8 +22,31 @@ macro_rules! log {
 }
 
 #[cfg(not(debug_assertions))]
+#[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {};
+}
+
+#[macro_export]
+macro_rules! dbg {
+    // Copy of ::std::dbg! but for no_std with redirection to log!
+    () => {
+        $crate::log!("[{}:{}]", ::core::file!(), ::core::line!())
+    };
+    ($val:expr $(,)?) => {
+        // Use of `match` here is intentional because it affects the lifetimes
+        // of temporaries - https://stackoverflow.com/a/48732525/1063961
+        match $val {
+            tmp => {
+                $crate::log!("[{}:{}] {} = {:#?}",
+                    ::core::file!(), ::core::line!(), ::core::stringify!($val), &tmp);
+                tmp
+            }
+        }
+    };
+    ($($val:expr),+ $(,)?) => {
+        ($($crate::dbg!($val)),+,)
+    };
 }
 
 mod data;
@@ -47,17 +71,15 @@ async fn main() {
                     match timer::state() {
                         TimerState::NotRunning => {
                             let start = progress.start(&data);
-                            log!("start: {:?}", start);
                             if let Some(action) = start {
                                 act(action);
                             }
                         }
                         TimerState::Running => {
-                            while let Some(action) = progress.act(&data) {
-                                if let Some(action) = settings.filter(action) {
-                                    log!("Decided on an action: {action:?}");
-                                    act(action);
-                                }
+                            if let Some(action) = progress.act(&data).filter(|o| settings.filter(o))
+                            {
+                                log!("Decided on an action: {action:?}");
+                                act(action);
                             }
                         }
                         _ => {}
@@ -84,7 +106,6 @@ enum Action {
 }
 
 struct Progress {
-    next: Option<Action>,
     loading: Watcher<bool>,
     encounter: Option<Address64>,
 }
@@ -92,7 +113,6 @@ struct Progress {
 impl Progress {
     pub fn new() -> Self {
         Self {
-            next: None,
             loading: Watcher::new(),
             encounter: None,
         }
@@ -103,10 +123,6 @@ impl Progress {
     }
 
     pub fn act(&mut self, data: &Data<'_>) -> Option<Action> {
-        if let Some(next) = self.next.take() {
-            return Some(next);
-        }
-
         match self.loading.update(data.is_loading()) {
             Some(l) if l.changed_to(&false) => Some(Action::Resume),
             Some(l) if l.changed_to(&true) => Some(Action::Pause),
@@ -140,11 +156,11 @@ impl Progress {
 }
 
 impl Settings {
-    fn filter(&self, action: Action) -> Option<Action> {
-        Some(action).filter(|action| match action {
+    fn filter(&self, action: &Action) -> bool {
+        match action {
             Action::Pause | Action::Resume => self.remove_loads,
             _ => true,
-        })
+        }
     }
 }
 
