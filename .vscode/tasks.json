@@ -12,6 +12,16 @@
 			"label": "Build Auto Splitter"
 		},
 		{
+			"type": "cargo",
+			"command": "build",
+			"problemMatcher": [
+				"$rustc",
+				"$rust-panic"
+			],
+			"group": "build",
+			"label": "Debug Build Auto Splitter"
+		},
+		{
 			"label": "Debug Auto Splitter",
 			"type": "process",
 			"problemMatcher": [],
@@ -19,9 +29,9 @@
 			// cargo install --locked --git https://github.com/CryZe/asr-debugger
 			"command": "asr-debugger",
 			"args": [
-				"target${pathSeparator}wasm32-unknown-unknown${pathSeparator}release${pathSeparator}sea_of_stars_autosplitter.wasm",
+				"target${pathSeparator}wasm32-unknown-unknown${pathSeparator}debug${pathSeparator}sea_of_stars_autosplitter.wasm",
 			],
-			"dependsOn": "Build Auto Splitter"
+			"dependsOn": "Debug Build Auto Splitter"
 		}
 	]
 }
