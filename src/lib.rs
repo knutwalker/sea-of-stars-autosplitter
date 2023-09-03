@@ -1,5 +1,5 @@
-#![no_std]
-
+#[cfg(debugger)]
+use crate::data::{Activity, Level, PlayTime};
 use crate::data::{Data, GameState};
 use asr::{
     future::next_tick,
@@ -8,11 +8,11 @@ use asr::{
     Address64, Process,
 };
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, debugger))]
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {{
-        let mut buf = ::asr::arrayvec::ArrayString::<1024>::new();
+        let mut buf = ::asr::arrayvec::ArrayString::<8192>::new();
         let _ = ::core::fmt::Write::write_fmt(
             &mut buf,
             ::core::format_args!($($arg)*),
@@ -21,7 +21,7 @@ macro_rules! log {
     }};
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(any(debug_assertions, debugger)))]
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {};
@@ -38,7 +38,7 @@ macro_rules! dbg {
         // of temporaries - https://stackoverflow.com/a/48732525/1063961
         match $val {
             tmp => {
-                $crate::log!("[{}:{}] {} = {:#?}",
+                $crate::log!("[{}:{}] {} = {:?}",
                     ::core::file!(), ::core::line!(), ::core::stringify!($val), &tmp);
                 tmp
             }
@@ -52,7 +52,6 @@ macro_rules! dbg {
 mod data;
 
 asr::async_main!(stable);
-asr::panic_handler!();
 
 async fn main() {
     asr::set_tick_rate(60.0);
@@ -64,17 +63,22 @@ async fn main() {
         log!("attached to process");
         process
             .until_closes(async {
-                let data = Data::new(&process).await;
+                let mut data = Data::new(&process).await;
                 let mut progress = Progress::new();
 
                 loop {
+                    #[cfg(debugger)]
+                    for item in data.check_for_new_key_items().await {
+                        log!("picked up a new key item: {item}");
+                    }
+
                     match timer::state() {
                         TimerState::NotRunning => {
-                            let start = progress.start(&data);
+                            let start = progress.start(&mut data).await;
                             act(start, &settings);
                         }
                         TimerState::Running => {
-                            let action = progress.act(&data);
+                            let action = progress.act(&mut data).await;
                             act(action, &settings);
                         }
                         _ => {}
@@ -112,6 +116,12 @@ enum Action {
 struct Progress {
     loading: Watcher<bool>,
     encounter: Option<Address64>,
+    #[cfg(debugger)]
+    play_time: Watcher<PlayTime>,
+    #[cfg(debugger)]
+    activity: Watcher<Activity>,
+    #[cfg(debugger)]
+    level: Watcher<Level>,
 }
 
 impl Progress {
@@ -119,38 +129,81 @@ impl Progress {
         Self {
             loading: Watcher::new(),
             encounter: None,
+            #[cfg(debugger)]
+            play_time: Watcher::new(),
+            #[cfg(debugger)]
+            activity: Watcher::new(),
+            #[cfg(debugger)]
+            level: Watcher::new(),
         }
     }
 
-    pub fn start(&mut self, data: &Data<'_>) -> Option<Action> {
-        matches!(data.game_start(), GameState::JustStarted).then_some(Action::Start)
+    pub async fn start(&mut self, data: &mut Data<'_>) -> Option<Action> {
+        matches!(data.game_start().await, GameState::JustStarted).then_some(Action::Start)
     }
 
-    pub fn act(&mut self, data: &Data<'_>) -> Option<Action> {
-        match self.loading.update(data.is_loading()) {
+    pub async fn act(&mut self, data: &mut Data<'_>) -> Option<Action> {
+        let loading = if let Some(progress) = data.progress().await {
+            #[cfg(debugger)]
+            {
+                let play_time = self.play_time.update_infallible(progress.play_time());
+                if play_time.changed() {
+                    log!("{:?}", play_time.current);
+                }
+
+                let first = self.activity.pair.is_none();
+                let activity = self.activity.update_infallible(progress.activity());
+                if first || activity.changed() {
+                    log!("{:?}", activity.current);
+                    timer::set_variable("activity", activity.current.id.as_str());
+                }
+
+                let first = self.level.pair.is_none();
+                let level = self.level.update_infallible(progress.level());
+                if first || level.changed() {
+                    log!("{:?}", level.current);
+                    timer::set_variable("level", level.current_level.as_str());
+                }
+            }
+
+            Some(progress.is_loading)
+        } else {
+            None
+        };
+
+        match self.loading.update(loading) {
             Some(l) if l.changed_to(&false) => Some(Action::Resume),
             Some(l) if l.changed_to(&true) => Some(Action::Pause),
             _ => self
                 .check_encounter(data)
+                .await
                 .and_then(|o| o.then_some(Action::Split)),
         }
     }
 
-    fn check_encounter(&mut self, data: &Data<'_>) -> Option<bool> {
+    async fn check_encounter(&mut self, data: &mut Data<'_>) -> Option<bool> {
         match self.encounter {
             Some(enc) => match data.resolve_encounter(enc) {
                 Some(enc) if enc.done => {
+                    #[cfg(debugger)]
+                    data.dump_current_encounter().await;
                     self.encounter = None;
-                    return Some(true);
+                    return Some(enc.boss);
                 }
-                Some(_) => {}
+                Some(_) =>
+                {
+                    #[cfg(debugger)]
+                    data.dump_current_hp_levels().await
+                }
                 None => {
                     self.encounter = None;
                 }
             },
             None => {
                 let (address, encounter) = data.encounter()?;
-                if encounter.boss && !encounter.done {
+                if !encounter.done {
+                    #[cfg(debugger)]
+                    data.dump_current_encounter().await;
                     self.encounter = Some(address);
                 }
             }
