@@ -48,12 +48,30 @@ impl Data<'_> {
         TitleScreen::game_start(title_screen.as_deref(), self.process).await
     }
 
+    #[cfg(not(debugger))]
     pub async fn progress(&mut self) -> Option<CurrentProgress> {
         let progression = self
             .progression
             .try_get(self.process, &self.module, &self.image, Progression::new)
             .await?;
+
         progression.get_progress(self.process)
+    }
+
+    #[cfg(debugger)]
+    pub async fn progress(&mut self) -> Option<CurrentProgress> {
+        let progression = self
+            .progression
+            .try_get(self.process, &self.module, &self.image, Progression::new)
+            .await?;
+
+        let loc = self
+            .loc
+            .try_get(self.process, &self.module, &self.image, Loc::new)
+            .await?
+            .as_ref()?;
+
+        progression.get_progress(self.process, loc)
     }
 
     pub async fn encounter(&mut self, enc: Option<Address64>) -> Option<(Address64, Encounter)> {
@@ -973,6 +991,11 @@ mod combat {
 
 mod progress {
     #[cfg(debugger)]
+    use std::rc::Rc;
+
+    #[cfg(debugger)]
+    use ahash::HashMap;
+    #[cfg(debugger)]
     use asr::{arrayvec::ArrayString, time::Duration};
     use asr::{
         game_engine::unity::il2cpp::{Class, Image, Module},
@@ -981,7 +1004,7 @@ mod progress {
     #[cfg(debugger)]
     use bytemuck::AnyBitPattern;
     #[cfg(debugger)]
-    use csharp_mem::{CSString, Pointer, Set};
+    use csharp_mem::{CSString, Map, Pointer, Set};
 
     use super::Singleton;
 
@@ -1002,6 +1025,22 @@ mod progress {
         main_activity: Pointer<CSString>,
         #[rename = "subActivityIndex"]
         sub_activity_index: u32,
+        #[cfg(debugger)]
+        #[cfg_attr(debugger, rename = "allActivityData")]
+        all_activities: Pointer<Map<ActivityReference, Pointer<ActivityData>>>,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Copy, Clone, Debug, AnyBitPattern)]
+    struct ActivityReference {
+        guid: Pointer<CSString>,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct ActivityData {
+        #[rename = "activityNameLoc"]
+        name: super::loc::LocalizationId,
     }
 
     #[cfg(not(debugger))]
@@ -1016,12 +1055,12 @@ mod progress {
     struct LevelManager {
         #[rename = "loadingLevel"]
         is_loading: bool,
-
         #[rename = "currentLevel"]
         current_level: LevelReference,
-
         #[rename = "previousLevelInfo"]
         previous_level_info: Pointer<LoadedLevelInfo>,
+        #[rename = "levelDefinitionPerLevel"]
+        all_levels: Pointer<Map<LevelReference, Pointer<LevelDefinition>>>,
     }
 
     #[cfg(debugger)]
@@ -1034,6 +1073,13 @@ mod progress {
     #[derive(Copy, Clone, Debug, AnyBitPattern)]
     struct LevelReference {
         guid: Pointer<CSString>,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct LevelDefinition {
+        #[rename = "levelNameLocId"]
+        name: super::loc::LocalizationId,
     }
 
     #[cfg(debugger)]
@@ -1051,6 +1097,10 @@ mod progress {
 
     #[cfg(debugger)]
     binding!(LoadedLevelInfoBinding => LoadedLevelInfo);
+    #[cfg(debugger)]
+    binding!(ActivityDataBinding => ActivityData);
+    #[cfg(debugger)]
+    binding!(LevelDefinitionBinding => LevelDefinition);
 
     pub struct Progression {
         level_manager: Singleton<LevelManagerBinding>,
@@ -1059,7 +1109,11 @@ mod progress {
         #[cfg(debugger)]
         activity_manager: Singleton<ActivityManagerBinding>,
         #[cfg(debugger)]
+        all_activities: HashMap<String, ActivityData>,
+        #[cfg(debugger)]
         loaded_level_info: LoadedLevelInfoBinding,
+        #[cfg(debugger)]
+        all_levels: HashMap<String, LevelDefinition>,
     }
 
     impl Progression {
@@ -1068,16 +1122,60 @@ mod progress {
 
             #[cfg(debugger)]
             {
-                let loaded_level_info = binds!(process, module, image, (LoadedLevelInfo));
+                let (loaded_level_info, activity_data, level_definition) = binds!(
+                    process,
+                    module,
+                    image,
+                    (LoadedLevelInfo, ActivityData, LevelDefinition)
+                );
+
                 let progression_manager =
                     ProgressionManagerBinding::new(process, module, image).await;
                 let activity_manager = ActivityManagerBinding::new(process, module, image).await;
+
+                let all_activities = ActivityManagerBinding::resolve(&activity_manager, process)
+                    .into_iter()
+                    .flat_map(|o| {
+                        let process = super::Proc(process);
+                        let activity_data = &activity_data;
+                        o.all_activities
+                            .resolve(process)
+                            .into_iter()
+                            .flat_map(move |o| {
+                                o.iter(process).filter_map(move |(ar, ad)| {
+                                    let ad = ad.resolve_with((process, activity_data))?;
+                                    let ar = ar.guid.resolve(process)?.to_std_string(process);
+                                    Some((ar, ad))
+                                })
+                            })
+                    })
+                    .collect();
+
+                let all_levels = LevelManagerBinding::resolve(&level_manager, process)
+                    .into_iter()
+                    .flat_map(|o| {
+                        let process = super::Proc(process);
+                        let level_definition = &level_definition;
+                        o.all_levels
+                            .resolve(process)
+                            .into_iter()
+                            .flat_map(move |o| {
+                                o.iter(process).filter_map(move |(lr, ld)| {
+                                    let ld = ld.resolve_with((process, level_definition))?;
+                                    let lr = lr.guid.resolve(process)?.to_std_string(process);
+                                    Some((lr, ld))
+                                })
+                            })
+                    })
+                    .collect();
 
                 Self {
                     level_manager,
                     progression_manager,
                     activity_manager,
+                    all_activities,
                     loaded_level_info,
+                    all_levels,
                 }
             }
 
@@ -1087,54 +1185,86 @@ mod progress {
             }
         }
 
-        pub fn get_progress(&self, process: &Process) -> Option<CurrentProgress> {
+        #[cfg(debugger)]
+        pub fn get_progress(
+            &self,
+            process: &Process,
+            loc: &super::loc::Loc,
+        ) -> Option<CurrentProgress> {
             let process = super::Proc(process);
 
             let level = LevelManagerBinding::resolve(&self.level_manager, process.0)?;
 
-            #[cfg(debugger)]
-            {
-                let progression =
-                    ProgressionManagerBinding::resolve(&self.progression_manager, process.0)?;
+            let progression =
+                ProgressionManagerBinding::resolve(&self.progression_manager, process.0)?;
 
-                let number_of_defeated_perma_death_enemies = progression
-                    .defeated_perma_death_enemies
-                    .resolve(process)?
-                    .size();
+            let number_of_defeated_perma_death_enemies = progression
+                .defeated_perma_death_enemies
+                .resolve(process)?
+                .size();
 
-                let activity = ActivityManagerBinding::resolve(&self.activity_manager, process.0)?;
-                let main_activity = activity.main_activity.resolve(process)?.to_string(process);
-
-                let current_level = level
-                    .current_level
-                    .guid
-                    .resolve(process)?
-                    .to_string(process);
-
-                let previous_level = level
-                    .previous_level_info
-                    .resolve_with((process, &self.loaded_level_info))
-                    .and_then(|o| o.level.guid.resolve(process).map(|o| o.to_string(process)))
-                    .unwrap_or_default();
-
-                Some(CurrentProgress {
-                    is_loading: level.is_loading,
-                    timestamp: progression.timestamp,
-                    play_time: progression.play_time,
-                    main_activity,
-                    sub_activity_index: activity.sub_activity_index,
-                    current_level,
-                    previous_level,
-                    number_of_defeated_perma_death_enemies,
+            let activity = ActivityManagerBinding::resolve(&self.activity_manager, process.0)?;
+            let main_activity = activity.main_activity.resolve(process)?.to_string(process);
+            let activity_name = self
+                .all_activities
+                .get(main_activity.as_str())
+                .and_then(|o| {
+                    let (activity_name, _) = loc.lookup(process, o.name)?;
+                    Some(activity_name.into())
                 })
-            }
+                .unwrap_or_else(|| "".into());
 
-            #[cfg(not(debugger))]
-            {
-                Some(CurrentProgress {
-                    is_loading: level.is_loading,
+            let current_level = level
+                .current_level
+                .guid
+                .resolve(process)?
+                .to_string(process);
+            let current_level_name = self
+                .all_levels
+                .get(current_level.as_str())
+                .and_then(|o| {
+                    let (level_name, _) = loc.lookup(process, o.name)?;
+                    Some(level_name.into())
                 })
-            }
+                .unwrap_or_else(|| "".into());
+
+            let previous_level = level
+                .previous_level_info
+                .resolve_with((process, &self.loaded_level_info))
+                .and_then(|o| o.level.guid.resolve(process).map(|o| o.to_string(process)))
+                .unwrap_or_default();
+            let previous_level_name = self
+                .all_levels
+                .get(previous_level.as_str())
+                .and_then(|o| {
+                    let (level_name, _) = loc.lookup(process, o.name)?;
+                    Some(level_name.into())
+                })
+                .unwrap_or_else(|| "".into());
+
+            Some(CurrentProgress {
+                is_loading: level.is_loading,
+                timestamp: progression.timestamp,
+                play_time: progression.play_time,
+                main_activity,
+                activity_name,
+                sub_activity_index: activity.sub_activity_index,
+                current_level,
+                current_level_name,
+                previous_level,
+                previous_level_name,
+                number_of_defeated_perma_death_enemies,
+            })
+        }
+
+        #[cfg(not(debugger))]
+        pub fn get_progress(&self, process: &Process) -> Option<CurrentProgress> {
+            let process = super::Proc(process);
+            let level = LevelManagerBinding::resolve(&self.level_manager, process.0)?;
+
+            Some(CurrentProgress {
+                is_loading: level.is_loading,
+            })
         }
     }
 
@@ -1148,11 +1278,17 @@ mod progress {
         #[cfg(debugger)]
         pub main_activity: ArrayString<36>,
         #[cfg(debugger)]
+        pub activity_name: Rc<str>,
+        #[cfg(debugger)]
         pub sub_activity_index: u32,
         #[cfg(debugger)]
         pub current_level: ArrayString<36>,
         #[cfg(debugger)]
+        pub current_level_name: Rc<str>,
+        #[cfg(debugger)]
         pub previous_level: ArrayString<36>,
+        #[cfg(debugger)]
+        pub previous_level_name: Rc<str>,
         #[cfg(debugger)]
         pub number_of_defeated_perma_death_enemies: u32,
     }
@@ -1169,16 +1305,25 @@ mod progress {
         pub fn activity(&self) -> Activity {
             Activity {
                 id: self.main_activity,
+                name: Rc::clone(&self.activity_name),
                 sub_index: self.sub_activity_index,
-                defeated_perma_death_enemies: self.number_of_defeated_perma_death_enemies,
+                perma_dead: self.number_of_defeated_perma_death_enemies,
             }
         }
 
-        pub fn level(&self) -> Level {
+        pub fn current_level(&self) -> Level {
             Level {
                 is_loading: self.is_loading,
-                current_level: self.current_level,
-                previous_level: self.previous_level,
+                id: self.current_level,
+                name: Rc::clone(&self.current_level_name),
+            }
+        }
+
+        pub fn prev_level(&self) -> Level {
+            Level {
+                is_loading: self.is_loading,
+                id: self.previous_level,
+                name: Rc::clone(&self.previous_level_name),
             }
         }
     }
@@ -1194,16 +1339,17 @@ mod progress {
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Activity {
         pub id: ArrayString<36>,
+        pub name: Rc<str>,
         pub sub_index: u32,
-        pub defeated_perma_death_enemies: u32,
+        pub perma_dead: u32,
     }
 
     #[cfg(debugger)]
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Level {
         pub is_loading: bool,
-        pub current_level: ArrayString<36>,
-        pub previous_level: ArrayString<36>,
+        pub id: ArrayString<36>,
+        pub name: Rc<str>,
     }
 }
 

@@ -121,7 +121,9 @@ struct Progress {
     #[cfg(debugger)]
     activity: Watcher<Activity>,
     #[cfg(debugger)]
-    level: Watcher<Level>,
+    current_level: Watcher<Level>,
+    #[cfg(debugger)]
+    previous_level: Watcher<Level>,
 }
 
 impl Progress {
@@ -134,7 +136,9 @@ impl Progress {
             #[cfg(debugger)]
             activity: Watcher::new(),
             #[cfg(debugger)]
-            level: Watcher::new(),
+            current_level: Watcher::new(),
+            #[cfg(debugger)]
+            previous_level: Watcher::new(),
         }
     }
 
@@ -160,14 +164,24 @@ impl Progress {
                 let activity = self.activity.update_infallible(progress.activity());
                 if first || activity.changed() {
                     log!("{:?}", activity.current);
-                    timer::set_variable("activity", activity.current.id.as_str());
+                    timer::set_variable("activity", &activity.current.name);
+                    timer::set_variable("activity_id", activity.current.id.as_str());
                 }
 
-                let first = self.level.pair.is_none();
-                let level = self.level.update_infallible(progress.level());
+                let first = self.previous_level.pair.is_none();
+                let level = self.previous_level.update_infallible(progress.prev_level());
                 if first || level.changed() {
-                    log!("{:?}", level.current);
-                    timer::set_variable("level", level.current_level.as_str());
+                    log!("Previous {:?}", level.current);
+                }
+
+                let first = self.current_level.pair.is_none();
+                let level = self
+                    .current_level
+                    .update_infallible(progress.current_level());
+                if first || level.changed() {
+                    log!("Current {:?}", level.current);
+                    timer::set_variable("level", &level.name);
+                    timer::set_variable("level_id", level.id.as_str());
                 }
             }
 
