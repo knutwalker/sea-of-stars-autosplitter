@@ -18,14 +18,16 @@ use bytemuck::AnyBitPattern;
 use csharp_mem::{CSString, List, Map, Set};
 use csharp_mem::{MemReader, Pointer};
 
+pub use self::title_screen::GameStart;
+use self::title_screen::TitleScreen;
+
 pub struct Data<'a> {
     process: &'a Process,
     module: Module,
     image: Image,
-    char_select: CharacterSelectionScreenBinding,
+    title_screen: LateInit<TitleScreen>,
     combat: Singleton<CombatManagerBinding>,
     encounter: EncounterBinding,
-    title_screen: LateInit<Singleton<TitleSequenceManagerBinding>>,
     progression: LateInit<Progression>,
     #[cfg(debugger)]
     combat2: LateInit<Combat>,
@@ -35,42 +37,13 @@ pub struct Data<'a> {
     inventory: LateInit<inventory::Inventory>,
 }
 
-pub enum GameState {
-    NotStarted,
-    JustStarted,
-    AlreadyRunning,
-}
-
 impl Data<'_> {
-    pub async fn game_start(&mut self) -> GameState {
+    pub async fn game_start(&mut self) -> GameStart {
         let title_screen = self
             .title_screen
-            .try_get(
-                self.process,
-                &self.module,
-                &self.image,
-                TitleSequenceManagerBinding::new,
-            )
+            .try_get(self.process, &self.module, &self.image, TitleScreen::new)
             .await;
-
-        let title_screen =
-            title_screen.and_then(|o| TitleSequenceManagerBinding::resolve(o, self.process));
-
-        let char_select = title_screen.and_then(|o| {
-            self.char_select
-                .read(self.process, o.selection_screen.into())
-                .ok()
-        });
-
-        if let Some(char_select) = char_select {
-            if char_select.selected {
-                GameState::JustStarted
-            } else {
-                GameState::NotStarted
-            }
-        } else {
-            GameState::AlreadyRunning
-        }
+        TitleScreen::game_start(title_screen.as_deref(), self.process).await
     }
 
     pub async fn progress(&mut self) -> Option<CurrentProgress> {
@@ -293,16 +266,77 @@ impl<T> LateInit<T> {
     }
 }
 
-#[derive(Class)]
-struct TitleSequenceManager {
-    #[rename = "characterSelectionScreen"]
-    selection_screen: Address64,
+#[derive(Debug)]
+struct Singleton<T> {
+    binding: T,
+    address: Address,
 }
 
-#[derive(Class)]
-struct CharacterSelectionScreen {
-    #[rename = "characterSelected"]
-    selected: bool,
+mod title_screen {
+    use asr::{
+        game_engine::unity::il2cpp::{Class, Image, Module},
+        Process,
+    };
+    use csharp_mem::Pointer;
+
+    use super::Singleton;
+
+    pub enum GameStart {
+        NotStarted,
+        JustStarted,
+        AlreadyRunning,
+    }
+
+    #[derive(Class)]
+    struct TitleSequenceManager {
+        #[rename = "characterSelectionScreen"]
+        selection_screen: Pointer<CharacterSelectionScreen>,
+    }
+
+    impl TitleSequenceManagerBinding {
+        singleton!(TitleSequenceManager);
+    }
+
+    #[derive(Class)]
+    struct CharacterSelectionScreen {
+        #[rename = "characterSelected"]
+        selected: bool,
+    }
+    binding!(CharacterSelectionScreenBinding => CharacterSelectionScreen);
+
+    pub struct TitleScreen {
+        title_screen: Singleton<TitleSequenceManagerBinding>,
+        char_select: CharacterSelectionScreenBinding,
+    }
+
+    impl TitleScreen {
+        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
+            let title_screen = TitleSequenceManagerBinding::new(process, module, image).await;
+            let char_select = binds!(process, module, image, (CharacterSelectionScreen));
+            Self {
+                title_screen,
+                char_select,
+            }
+        }
+
+        pub async fn game_start(this: Option<&Self>, process: &Process) -> GameStart {
+            let char_select = this.and_then(|o| {
+                TitleSequenceManagerBinding::resolve(&o.title_screen, process)?
+                    .selection_screen
+                    .resolve_with((process, &o.char_select))
+            });
+
+            if let Some(char_select) = char_select {
+                if char_select.selected {
+                    GameStart::JustStarted
+                } else {
+                    GameStart::NotStarted
+                }
+            } else {
+                GameStart::AlreadyRunning
+            }
+        }
+    }
 }
 
 #[cfg(debugger)]
@@ -790,12 +824,7 @@ impl<'a> Data<'a> {
         let image = module.wait_get_default_image(process).await;
         log!("Attaching to the game");
 
-        let (char_select, encounter) = binds!(
-            process,
-            &module,
-            &image,
-            (CharacterSelectionScreen, Encounter)
-        );
+        let encounter = binds!(process, &module, &image, (Encounter));
 
         let combat = CombatManagerBinding::new(process, &module, &image).await;
 
@@ -805,7 +834,6 @@ impl<'a> Data<'a> {
             process,
             module,
             image,
-            char_select,
             combat,
             encounter,
             title_screen: LateInit::new(),
@@ -818,16 +846,6 @@ impl<'a> Data<'a> {
             loc: LateInit::new(),
         }
     }
-}
-
-#[derive(Debug)]
-struct Singleton<T> {
-    binding: T,
-    address: Address,
-}
-
-impl TitleSequenceManagerBinding {
-    singleton!(TitleSequenceManager);
 }
 
 impl CombatManagerBinding {

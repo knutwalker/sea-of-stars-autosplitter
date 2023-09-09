@@ -1,6 +1,6 @@
 #[cfg(debugger)]
 use crate::data::{Activity, Level, PlayTime};
-use crate::data::{Data, GameState};
+use crate::data::{Data, GameStart};
 use asr::{
     future::next_tick,
     timer::{self, TimerState},
@@ -139,7 +139,7 @@ impl Progress {
     }
 
     pub async fn start(&mut self, data: &mut Data<'_>) -> Option<Action> {
-        matches!(data.game_start().await, GameState::JustStarted).then_some(Action::Start)
+        matches!(data.game_start().await, GameStart::JustStarted).then_some(Action::Start)
     }
 
     pub async fn act(&mut self, data: &mut Data<'_>) -> Option<Action> {
