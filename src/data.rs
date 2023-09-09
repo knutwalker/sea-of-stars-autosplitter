@@ -29,6 +29,8 @@ pub struct Data<'a> {
     #[cfg(debugger)]
     combat2: LateInit<Combat>,
     #[cfg(debugger)]
+    loc: LateInit<Option<loc::Loc>>,
+    #[cfg(debugger)]
     inventory: LateInit<inventory::Inventory>,
 }
 
@@ -88,13 +90,8 @@ impl Data<'_> {
 
     #[cfg(debugger)]
     pub async fn dump_current_encounter(&mut self) {
-        let encounter = self
-            .combat2
-            .try_get(self.process, &self.module, &self.image, Combat::new)
-            .await
-            .and_then(|o| o.resolve(self.process));
-        if let Some(encounter) = encounter {
-            encounter.enemies().for_each(|e| {
+        if let Some(enc) = self.deep_resolve_encounter().await {
+            enc.enemies().for_each(|e| {
                 log!("{e:?}");
             });
         }
@@ -102,41 +99,69 @@ impl Data<'_> {
 
     #[cfg(debugger)]
     pub async fn dump_current_hp_levels(&mut self) {
-        const KEYS: [&str; 6] = [
-            "enemy_1", "enemy_2", "enemy_3", "enemy_4", "enemy_5", "enemy_6",
+        const KEYS: [(&str, &str, &str); 6] = [
+            ("enemy_1", "enemy_1_id", "enemy_1_hp"),
+            ("enemy_2", "enemy_2_id", "enemy_2_hp"),
+            ("enemy_3", "enemy_3_id", "enemy_3_hp"),
+            ("enemy_4", "enemy_4_id", "enemy_4_hp"),
+            ("enemy_5", "enemy_5_id", "enemy_5_hp"),
+            ("enemy_6", "enemy_6_id", "enemy_6_hp"),
         ];
 
-        const HP_KEYS: [&str; 6] = [
-            "enemy_1_hp",
-            "enemy_2_hp",
-            "enemy_3_hp",
-            "enemy_4_hp",
-            "enemy_5_hp",
-            "enemy_6_hp",
-        ];
+        #[derive(Copy, Clone, Debug, Default)]
+        struct Data<'a> {
+            id: &'a str,
+            name: &'a str,
+            hp: u32,
+        }
 
-        if let Some(enc) = self
-            .combat2
-            .try_get(self.process, &self.module, &self.image, Combat::new)
-            .await
-            .and_then(|o| o.resolve(self.process))
-        {
-            for (e, (key, hp_key)) in enc
+        if let Some(enc) = self.deep_resolve_encounter().await {
+            for (e, (name_key, id_key, hp_key)) in enc
                 .enemies()
-                .filter_map(|e| match e {
-                    combat::EnemyEncounter::Enemy(e) => Some(e),
-                    _ => None,
+                .scan(Data::default(), |acc, e| {
+                    Some(match e {
+                        combat::EnemyEncounter::Enemy(e) => {
+                            acc.id = e.id;
+                            acc.name = e.name;
+                            None
+                        }
+                        combat::EnemyEncounter::EnemyStats(e) => {
+                            acc.hp = e.current_hp;
+                            Some(core::mem::take(acc))
+                        }
+                        _ => None,
+                    })
                 })
+                .filter_map(|o| o)
                 .map(Some)
                 .chain(core::iter::repeat(None))
-                .zip(KEYS.into_iter().zip(HP_KEYS))
+                .zip(KEYS)
             {
-                let hp = e.map_or(0, |o| o.current_hp);
-                let id = e.as_ref().map_or("", |o| o.id.as_str());
-                asr::timer::set_variable(key, id);
+                let name = e.map_or("", |o| o.name);
+                let id = e.map_or("", |o| o.id);
+                let hp = e.map_or(0, |o| o.hp);
+
+                asr::timer::set_variable(name_key, name);
+                asr::timer::set_variable(id_key, id);
                 asr::timer::set_variable_int(hp_key, hp);
             }
         }
+    }
+
+    #[cfg(debugger)]
+    pub async fn deep_resolve_encounter(&mut self) -> Option<combat::Encounter> {
+        let combat = self
+            .combat2
+            .try_get(self.process, &self.module, &self.image, Combat::new)
+            .await?;
+
+        let loc = self
+            .loc
+            .try_get(self.process, &self.module, &self.image, loc::Loc::new)
+            .await?
+            .as_ref()?;
+
+        combat.resolve(self.process, loc)
     }
 
     pub fn resolve_encounter(&self, address: Address64) -> Option<Encounter> {
@@ -189,6 +214,22 @@ macro_rules! singleton {
 
         fn resolve(this: &Singleton<Self>, process: &Process) -> Option<$cls> {
             this.binding.read(process, this.address).ok()
+        }
+    };
+}
+
+macro_rules! binding {
+    ($binding:ty => $cls:ty) => {
+        impl<'a> ::csharp_mem::Binding<$cls> for ($crate::data::Proc<'a>, &'a $binding) {
+            fn read(self, addr: u64) -> Option<$cls> {
+                self.1.read(self.0 .0, addr.into()).ok()
+            }
+        }
+
+        impl<'a> ::csharp_mem::Binding<$cls> for (&'a ::asr::Process, &'a $binding) {
+            fn read(self, addr: u64) -> Option<$cls> {
+                self.1.read(self.0, addr.into()).ok()
+            }
         }
     };
 }
@@ -404,6 +445,9 @@ struct EnemyCharacterData {
     level: u32,
     #[rename = "xpData"]
     xp: Pointer<XPData>,
+
+    #[rename = "nameLocalizationId"]
+    name_localization_id: loc::LocalizationId,
 }
 
 #[cfg(debugger)]
@@ -457,20 +501,271 @@ impl core::ops::BitAnd for DamageType {
     }
 }
 
-macro_rules! binding {
-    ($binding:ty => $cls:ty) => {
-        impl<'a> ::csharp_mem::Binding<$cls> for ($crate::data::Proc<'a>, &'a $binding) {
-            fn read(self, addr: u64) -> Option<$cls> {
-                self.1.read(self.0 .0, addr.into()).ok()
+#[cfg(debugger)]
+mod loc {
+    use ahash::HashMap;
+    use asr::{
+        game_engine::unity::il2cpp::{Class, Image, Module},
+        Process,
+    };
+    use bytemuck::AnyBitPattern;
+    use csharp_mem::{CSString, List, Map, MemReader, Pointer};
+
+    use super::Singleton;
+
+    #[derive(Class, Debug)]
+    pub struct LocalizationManager {
+        #[rename = "locCategories"]
+        pub loc_categories: Pointer<Map<Pointer<CSString>, Pointer<LocCategory>>>,
+        #[rename = "locCategoryLanguages"]
+        pub loc_category_languages: Pointer<Map<Pointer<CSString>, Pointer<LocCategoryLanguage>>>,
+    }
+
+    impl LocalizationManagerBinding {
+        singleton!(LocalizationManager);
+    }
+
+    #[derive(Class, Debug)]
+    pub struct LocCategory {
+        #[rename = "categoryId"]
+        pub category_id: Pointer<CSString>,
+        #[rename = "locIndexByLocStringId"]
+        pub loc_index_by_loc_string_id: Pointer<LocIndexByLocStringId>,
+    }
+
+    #[derive(Class, Debug)]
+    pub struct LocIndexByLocStringId {
+        pub dictionary: Pointer<Map<Pointer<CSString>, u32>>,
+    }
+
+    #[derive(Class, Debug)]
+    pub struct LocCategoryLanguage {
+        #[rename = "locCategoryId"]
+        pub loc_category_id: Pointer<CSString>,
+        pub language: ELanguage,
+        pub strings: Pointer<List<Pointer<CSString>>>,
+    }
+
+    binding!(LocCategoryBinding => LocCategory);
+    binding!(LocIndexByLocStringIdBinding => LocIndexByLocStringId);
+    binding!(LocCategoryLanguageBinding => LocCategoryLanguage);
+
+    #[derive(Copy, Clone, Debug, AnyBitPattern)]
+    #[repr(C)]
+    pub struct LocalizationId {
+        pub category_name: Pointer<CSString>,
+        pub loc_id: Pointer<CSString>,
+    }
+
+    #[derive(Copy, Clone, Debug, AnyBitPattern)]
+    #[repr(C)]
+    pub struct ELanguage {
+        value: u32,
+    }
+
+    #[allow(unused)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[repr(u32)]
+    pub enum Language {
+        EN = 0,
+        JP = 1,
+        RU = 2,
+        KO = 3,
+        QC = 4,
+        FR = 5,
+        DE = 6,
+        ES = 7,
+        BR = 8,
+        CN = 9,
+        HK = 10,
+    }
+
+    impl From<ELanguage> for Language {
+        fn from(value: ELanguage) -> Self {
+            unsafe { core::mem::transmute(value.value) }
+        }
+    }
+
+    pub struct Localization {
+        manager: Singleton<LocalizationManagerBinding>,
+        category: LocCategoryBinding,
+        index_by_id: LocIndexByLocStringIdBinding,
+        category_language: LocCategoryLanguageBinding,
+    }
+
+    impl Localization {
+        pub async fn new(process: &Process, module: &Module) -> Self {
+            let image = module
+                .wait_get_image(process, "Sabotage.Localization")
+                .await;
+            let manager = LocalizationManagerBinding::new(process, module, &image).await;
+
+            let (category, index_by_id, category_language) = binds!(
+                process,
+                module,
+                &image,
+                (LocCategory, LocIndexByLocStringId, LocCategoryLanguage)
+            );
+
+            Self {
+                manager,
+                category,
+                index_by_id,
+                category_language,
             }
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Loc {
+        pub categories: HashMap<String, Category>,
+        pub strings: HashMap<String, CategoryLanguage>,
+    }
+
+    impl Localization {
+        pub fn resolve(&self, process: &Process) -> Option<Loc> {
+            let manager = LocalizationManagerBinding::resolve(&self.manager, process)?;
+            let process = super::Proc(process);
+
+            let categories = manager.loc_categories.resolve(process)?;
+            let categories = categories
+                .iter(process)
+                .filter_map(|(id, cateogry)| {
+                    let id = id.resolve(process)?.to_std_string(process);
+                    let category = cateogry.resolve_with((process, &self.category))?;
+                    let category = category.resolve(process, &self.index_by_id)?;
+                    Some((id, category))
+                })
+                .collect();
+
+            let strings = manager.loc_category_languages.resolve(process)?;
+            let strings = strings
+                .iter(process)
+                .filter_map(|(id, lang)| {
+                    let id = id.resolve(process)?.to_std_string(process);
+
+                    let lang = lang.resolve_with((process, &self.category_language))?;
+                    let lang = lang.resolve(process)?;
+                    Some((id, lang))
+                })
+                .collect();
+
+            Some(Loc {
+                categories,
+                strings,
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Category {
+        pub id: Box<str>,
+        pub index: HashMap<Box<str>, usize>,
+    }
+
+    impl LocCategory {
+        fn resolve(
+            &self,
+            process: super::Proc<'_>,
+            index_by_id: &LocIndexByLocStringIdBinding,
+        ) -> Option<Category> {
+            let id = self
+                .category_id
+                .resolve(process)?
+                .to_std_string(process)
+                .into_boxed_str();
+
+            let index = self
+                .loc_index_by_loc_string_id
+                .resolve_with((process, index_by_id))?;
+
+            let index = index.dictionary.resolve(process)?;
+
+            let index = index
+                .iter(process)
+                .into_iter()
+                .flat_map(|(id, index)| {
+                    let id = id.resolve(process)?.to_std_string(process).into_boxed_str();
+                    let index = index as usize;
+                    Some((id, index))
+                })
+                .collect();
+
+            Some(Category { id, index })
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct CategoryLanguage {
+        pub id: Box<str>,
+        pub language: Language,
+        pub strings: List<Pointer<CSString>>, // Vec<Box<str>>
+    }
+
+    impl LocCategoryLanguage {
+        fn resolve(&self, process: super::Proc<'_>) -> Option<CategoryLanguage> {
+            let id = self
+                .loc_category_id
+                .resolve(process)?
+                .to_std_string(process)
+                .into_boxed_str();
+
+            let language = self.language.into();
+
+            let strings = self.strings.resolve(process)?;
+
+            // let strings = strings
+            //     .iter(process)
+            //     .flat_map(|o| {
+            //         Some(
+            //             o.resolve(process)?
+            //                 .to_std_string(process)
+            //                 .into_boxed_str(),
+            //         )
+            //     })
+            //     .collect();
+
+            Some(CategoryLanguage {
+                id,
+                language,
+                strings,
+            })
+        }
+    }
+
+    impl Loc {
+        pub async fn new(process: &Process, module: &Module, _image: &Image) -> Option<Self> {
+            let loc = Localization::new(process, module).await;
+            loc.resolve(process)
         }
 
-        impl<'a> ::csharp_mem::Binding<$cls> for (&'a ::asr::Process, &'a $binding) {
-            fn read(self, addr: u64) -> Option<$cls> {
-                self.1.read(self.0, addr.into()).ok()
-            }
+        pub fn lookup<R: MemReader + Copy>(
+            &self,
+            process: R,
+            loc_id: LocalizationId,
+        ) -> Option<(String, Language)> {
+            let cat_id = loc_id
+                .category_name
+                .resolve(process)?
+                .to_std_string(process);
+
+            let cat = self.categories.get(&cat_id)?;
+            let strings = self.strings.get(&cat_id)?;
+
+            let loc_id = loc_id
+                .loc_id
+                .resolve(process)?
+                .to_std_string(process)
+                .into_boxed_str();
+
+            let index = *cat.index.get(&loc_id)?;
+
+            let string = strings.strings.get(process, index)?;
+            let string = string.resolve(process)?.to_std_string(process);
+
+            Some((string, strings.language))
         }
-    };
+    }
 }
 
 binding!(EncounterBinding => Encounter);
@@ -518,6 +813,8 @@ impl<'a> Data<'a> {
             combat2: LateInit::new(),
             #[cfg(debugger)]
             inventory: LateInit::new(),
+            #[cfg(debugger)]
+            loc: LateInit::new(),
         }
     }
 }
@@ -916,7 +1213,7 @@ mod combat {
     use super::DamageType;
 
     impl super::Combat {
-        pub fn resolve(&self, process: &Process) -> Option<Encounter> {
+        pub fn resolve(&self, process: &Process, loc: &super::loc::Loc) -> Option<Encounter> {
             let process = super::Proc(process);
 
             let combat = super::CombatManagerBinding::resolve(&self.manager, process.0)?;
@@ -955,12 +1252,17 @@ mod combat {
                             });
 
                         let e_guid = char_data.guid.resolve(process)?;
+                        let id = e_guid.to_string(process);
+
+                        let name = char_data.name_localization_id;
+                        let (name, _language) = loc.lookup(process, name)?;
 
                         Some(EnemyCombatActor {
                             hide_hp: actor.hide_hp,
                             xp: actor.xp,
                             data: EnemyCharacterData {
-                                id: e_guid.to_string(process),
+                                id,
+                                name,
                                 level: char_data.level,
                                 xp,
                                 hp: char_data.hp,
@@ -1091,14 +1393,15 @@ mod combat {
 
                         [
                             EnemyEncounter::Enemy(Enemy {
-                                id: a.data.id,
-                                current_hp: t.current_hp,
-                                max_hp: a.data.hp,
+                                id: a.data.id.as_str(),
+                                name: &a.data.name,
                                 hide_hp: a.hide_hp,
                                 award_xp: a.xp,
                                 gold_drop: a.data.xp.gold,
                             }),
                             EnemyEncounter::EnemyStats(EnemyStats {
+                                current_hp: t.current_hp,
+                                max_hp: a.data.hp,
                                 level: a.data.level,
                                 speed: a.data.speed,
                                 attack: a.data.base_physical_attack,
@@ -1143,6 +1446,7 @@ mod combat {
         base_magic_defense: u32,
         damage_type_modifiers: Option<ArrayVec<(super::DamageType, f32), 11>>,
         damage_type_override: Option<ArrayVec<(super::DamageType, f32), 11>>,
+        name: String,
     }
 
     #[derive(Debug)]
@@ -1166,17 +1470,18 @@ mod combat {
     }
 
     #[derive(Copy, Clone, Debug)]
-    pub struct Enemy {
-        pub id: ArrayString<36>,
-        pub current_hp: u32,
-        pub max_hp: u32,
-        pub hide_hp: bool,
+    pub struct Enemy<'a> {
+        pub id: &'a str,
+        pub name: &'a str,
         pub award_xp: bool,
         pub gold_drop: u32,
+        pub hide_hp: bool,
     }
 
     #[derive(Copy, Clone, Debug)]
     pub struct EnemyStats {
+        pub current_hp: u32,
+        pub max_hp: u32,
         pub level: u32,
         pub speed: u32,
         pub attack: u32,
@@ -1198,14 +1503,14 @@ mod combat {
         pub stun: f32,
     }
 
-    pub enum EnemyEncounter {
+    pub enum EnemyEncounter<'a> {
         General(General),
-        Enemy(Enemy),
+        Enemy(Enemy<'a>),
         EnemyStats(EnemyStats),
         EnemyMods(EnemyMods),
     }
 
-    impl fmt::Debug for EnemyEncounter {
+    impl fmt::Debug for EnemyEncounter<'_> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             if f.alternate() {
                 match self {
@@ -1231,30 +1536,32 @@ mod combat {
                         )
                     }
                     EnemyEncounter::Enemy(Enemy {
-                        id,
-                        current_hp,
-                        max_hp,
-                        hide_hp,
-                        ..
+                        id, name, hide_hp, ..
                     }) => {
-                        write!(
-                            f,
-                            "Enemy: id={} hp={}/{} hide_hp={}",
-                            id, current_hp, max_hp, hide_hp
-                        )
+                        write!(f, "Enemy: id={} name={} hide_hp={}", id, name, hide_hp)
                     }
                     EnemyEncounter::EnemyStats(EnemyStats {
+                        current_hp,
+                        max_hp,
                         level,
                         speed,
                         attack,
                         defense,
                         magic_attack,
                         magic_defense,
+                        ..
                     }) => {
                         write!(
                             f,
-                            "|--stats: level={} speed={} A/MA={}/{}, D/MD={}/{}",
-                            level, speed, attack, magic_attack, defense, magic_defense
+                            "|--stats: hp={}/{} level={} speed={} A/MA={}/{}, D/MD={}/{}",
+                            current_hp,
+                            max_hp,
+                            level,
+                            speed,
+                            attack,
+                            magic_attack,
+                            defense,
+                            magic_defense
                         )
                     }
                     EnemyEncounter::EnemyMods(EnemyMods {
@@ -1272,7 +1579,7 @@ mod combat {
                             f,
                             concat!(
                                 "|--mods: any={} sword={} blunt={} sun={} ",
-                                "moon={} poison={}, arcane={} eclipse={} sun={}"
+                                "moon={} poison={}, arcane={} eclipse={} stun={}"
                             ),
                             any, sword, blunt, sun, moon, poison, arcane, eclipse, stun
                         )
