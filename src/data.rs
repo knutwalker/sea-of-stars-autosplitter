@@ -30,7 +30,7 @@ pub struct Data<'a> {
     process: &'a Process,
     module: Module,
     image: Image,
-    title_screen: LateInit<TitleScreen>,
+    title_screen: TitleScreen,
     combat: LateInit<Combat>,
     progression: LateInit<Progression>,
     #[cfg(debugger)]
@@ -40,12 +40,9 @@ pub struct Data<'a> {
 }
 
 impl Data<'_> {
-    pub async fn game_start(&mut self) -> GameStart {
-        let title_screen = self
-            .title_screen
-            .try_get(self.process, &self.module, &self.image, TitleScreen::new)
-            .await;
-        TitleScreen::game_start(title_screen.as_deref(), self.process).await
+    pub fn game_start(&mut self) -> GameStart {
+        self.title_screen
+            .game_start(self.process, &self.module, &self.image)
     }
 
     #[cfg(not(debugger))]
@@ -181,7 +178,7 @@ impl<'a> Data<'a> {
             process,
             module,
             image,
-            title_screen: LateInit::new(),
+            title_screen: TitleScreen::default(),
             combat: LateInit::new(),
             progression: LateInit::new(),
             #[cfg(debugger)]
@@ -321,11 +318,8 @@ impl<'a> MemReader for Proc<'a> {
 mod title_screen {
     use asr::{
         game_engine::unity::il2cpp::{Class, Image, Module},
-        Process,
+        Address, Address64, Process,
     };
-    use csharp_mem::Pointer;
-
-    use super::Singleton;
 
     pub enum GameStart {
         NotStarted,
@@ -333,53 +327,101 @@ mod title_screen {
         AlreadyRunning,
     }
 
-    #[derive(Class)]
-    struct TitleSequenceManager {
-        #[rename = "characterSelectionScreen"]
-        selection_screen: Pointer<CharacterSelectionScreen>,
-    }
-
-    impl TitleSequenceManagerBinding {
-        singleton!(TitleSequenceManager);
-    }
-
-    #[derive(Class)]
-    struct CharacterSelectionScreen {
-        #[rename = "characterSelected"]
-        selected: bool,
-    }
-    binding!(CharacterSelectionScreenBinding => CharacterSelectionScreen);
-
+    #[derive(Default)]
     pub struct TitleScreen {
-        title_screen: Singleton<TitleSequenceManagerBinding>,
-        char_select: CharacterSelectionScreenBinding,
+        title_screen_class: Option<Class>,
+        selection_screen_offset: Option<u32>,
+        title_screen: Option<Address>,
+        char_select_class: Option<Class>,
+        char_select_offset: Option<u32>,
     }
 
     impl TitleScreen {
-        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
-            let title_screen = TitleSequenceManagerBinding::new(process, module, image).await;
-            let char_select = binds!(process, module, image, (CharacterSelectionScreen));
-            Self {
-                title_screen,
-                char_select,
+        pub fn selected(
+            &mut self,
+            process: &Process,
+            module: &Module,
+            image: &Image,
+        ) -> Option<bool> {
+            let title_screen_class = match self.title_screen_class {
+                Some(ref cls) => cls,
+                None => {
+                    let title_screen_class =
+                        image.get_class(process, module, "TitleSequenceManager")?;
+                    self.title_screen_class = Some(title_screen_class);
+                    self.title_screen_class.as_ref().unwrap()
+                }
+            };
+
+            let selection_screen_offset = match self.selection_screen_offset {
+                Some(screen) => screen,
+                None => {
+                    let selection_screen_offset = title_screen_class.get_field(
+                        process,
+                        module,
+                        "characterSelectionScreen",
+                    )?;
+                    self.selection_screen_offset = Some(selection_screen_offset);
+                    self.selection_screen_offset.unwrap()
+                }
+            };
+
+            let title_screen = match self.title_screen {
+                Some(title_screen) => title_screen,
+                None => {
+                    let address =
+                        title_screen_class.get_static_instance(process, module, "instance")?;
+                    log!("found TitleSequenceManager instance at {}", address);
+                    self.title_screen = Some(address);
+                    self.title_screen.unwrap()
+                }
+            };
+
+            let char_select_class = match self.char_select_class {
+                Some(ref cls) => cls,
+                None => {
+                    let char_select_class =
+                        image.get_class(process, module, "CharacterSelectionScreen")?;
+                    self.char_select_class = Some(char_select_class);
+                    self.char_select_class.as_ref().unwrap()
+                }
+            };
+
+            let char_select_offset = match self.char_select_offset {
+                Some(screen) => screen,
+                None => {
+                    let char_select_offset =
+                        char_select_class.get_field(process, module, "characterSelected")?;
+                    log!("Created binding for class CharacterSelectionScreen");
+                    self.char_select_offset = Some(char_select_offset);
+                    self.char_select_offset.unwrap()
+                }
+            };
+
+            let selection_screen: Address64 =
+                process.read(title_screen + selection_screen_offset).ok()?;
+
+            if selection_screen.is_null() {
+                return None;
             }
+
+            let selected = process
+                .read(selection_screen + u64::from(char_select_offset))
+                .ok()?;
+
+            Some(selected)
         }
 
-        pub async fn game_start(this: Option<&Self>, process: &Process) -> GameStart {
-            let char_select = this.and_then(|o| {
-                TitleSequenceManagerBinding::resolve(&o.title_screen, process)?
-                    .selection_screen
-                    .resolve_with((process, &o.char_select))
-            });
-
-            if let Some(char_select) = char_select {
-                if char_select.selected {
-                    GameStart::JustStarted
-                } else {
-                    GameStart::NotStarted
-                }
-            } else {
-                GameStart::AlreadyRunning
+        pub fn game_start(
+            &mut self,
+            process: &Process,
+            module: &Module,
+            image: &Image,
+        ) -> GameStart {
+            match self.selected(process, module, image) {
+                Some(true) => GameStart::JustStarted,
+                Some(false) => GameStart::NotStarted,
+                None => GameStart::AlreadyRunning,
             }
         }
     }

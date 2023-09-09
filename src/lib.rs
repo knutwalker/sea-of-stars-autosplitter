@@ -74,7 +74,7 @@ async fn main() {
 
                     match timer::state() {
                         TimerState::NotRunning => {
-                            let start = progress.start(&mut data).await;
+                            let start = progress.start(&mut data);
                             act(start, &settings);
                         }
                         TimerState::Running => {
@@ -142,8 +142,8 @@ impl Progress {
         }
     }
 
-    pub async fn start(&mut self, data: &mut Data<'_>) -> Option<Action> {
-        matches!(data.game_start().await, GameStart::JustStarted).then_some(Action::Start)
+    pub fn start(&mut self, data: &mut Data<'_>) -> Option<Action> {
+        matches!(data.game_start(), GameStart::JustStarted).then_some(Action::Start)
     }
 
     pub async fn act(&mut self, data: &mut Data<'_>) -> Option<Action> {
