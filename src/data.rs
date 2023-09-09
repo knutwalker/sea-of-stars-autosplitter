@@ -71,15 +71,12 @@ impl Data<'_> {
         progression.get_progress(self.process, loc)
     }
 
-    pub async fn encounter(&mut self, enc: Option<Address64>) -> Option<(Address64, Encounter)> {
+    pub async fn encounter(&mut self) -> Option<Encounter> {
         let combat = self
             .combat
             .try_get(self.process, &self.module, &self.image, Combat::new)
             .await?;
-        match enc {
-            Some(enc) => combat.resolve_encounter(self.process, enc),
-            None => combat.current_encounter(self.process),
-        }
+        combat.current_encounter(self.process)
     }
 
     #[cfg(debugger)]
@@ -689,20 +686,10 @@ mod combat {
     }
 
     impl Combat {
-        pub fn current_encounter(&self, process: &Process) -> Option<(Address64, Encounter)> {
+        pub fn current_encounter(&self, process: &Process) -> Option<Encounter> {
             let combat = CombatManagerBinding::resolve(&self.manager, process)?;
             let encounter = combat.encounter.resolve_with((process, &self.encounter))?;
-            Some((combat.encounter.address_value().into(), encounter))
-        }
-
-        pub fn resolve_encounter(
-            &self,
-            process: &Process,
-            enc: Address64,
-        ) -> Option<(Address64, Encounter)> {
-            let encounter = bytemuck::cast::<_, Pointer<Encounter>>(enc);
-            let encounter = encounter.resolve_with((process, &self.encounter))?;
-            Some((enc, encounter))
+            Some(encounter)
         }
 
         #[cfg(debugger)]

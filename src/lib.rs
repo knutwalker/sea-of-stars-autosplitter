@@ -5,7 +5,7 @@ use asr::{
     future::next_tick,
     timer::{self, TimerState},
     watcher::Watcher,
-    Address64, Process,
+    Process,
 };
 
 #[cfg(any(debug_assertions, debugger))]
@@ -115,7 +115,7 @@ enum Action {
 
 struct Progress {
     loading: Watcher<bool>,
-    encounter: Option<Address64>,
+    in_encounter: bool,
     #[cfg(debugger)]
     play_time: Watcher<PlayTime>,
     #[cfg(debugger)]
@@ -130,7 +130,7 @@ impl Progress {
     pub fn new() -> Self {
         Self {
             loading: Watcher::new(),
-            encounter: None,
+            in_encounter: false,
             #[cfg(debugger)]
             play_time: Watcher::new(),
             #[cfg(debugger)]
@@ -201,12 +201,12 @@ impl Progress {
     }
 
     async fn check_encounter(&mut self, data: &mut Data<'_>) -> Option<bool> {
-        match self.encounter {
-            Some(enc) => match data.encounter(Some(enc)).await {
-                Some((_, enc)) if enc.done => {
+        if self.in_encounter {
+            match data.encounter().await {
+                Some(enc) if enc.done => {
                     #[cfg(debugger)]
                     data.dump_current_encounter().await;
-                    self.encounter = None;
+                    self.in_encounter = false;
                     return Some(enc.boss);
                 }
                 Some(_) =>
@@ -215,18 +215,19 @@ impl Progress {
                     data.dump_current_hp_levels().await
                 }
                 None => {
-                    self.encounter = None;
-                }
-            },
-            None => {
-                let (address, encounter) = data.encounter(None).await?;
-                if !encounter.done {
-                    #[cfg(debugger)]
-                    data.dump_current_encounter().await;
-                    self.encounter = Some(address);
+                    self.in_encounter = false;
                 }
             }
-        };
+        } else {
+            match data.encounter().await {
+                Some(enc) if !enc.done => {
+                    #[cfg(debugger)]
+                    data.dump_current_encounter().await;
+                    self.in_encounter = true;
+                }
+                _ => {}
+            }
+        }
         Some(false)
     }
 }
