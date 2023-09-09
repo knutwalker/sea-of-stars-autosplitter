@@ -528,6 +528,9 @@ mod combat {
     }
 
     #[cfg(debugger)]
+    binding!(EncounterLootBinding => EncounterLoot);
+
+    #[cfg(debugger)]
     #[derive(Class, Debug)]
     struct EnemyCombatActor {
         #[rename = "hideHP"]
@@ -537,6 +540,9 @@ mod combat {
         #[rename = "enemyData"]
         data: Pointer<EnemyCharacterData>,
     }
+
+    #[cfg(debugger)]
+    binding!(EnemyCombatActorBinding => EnemyCombatActor);
 
     #[cfg(debugger)]
     #[derive(Class, Debug)]
@@ -568,10 +574,16 @@ mod combat {
     }
 
     #[cfg(debugger)]
+    binding!(EnemyCharacterDataBinding => EnemyCharacterData);
+
+    #[cfg(debugger)]
     #[derive(Class, Debug)]
     struct FloatByEDamageType {
         dictionary: Pointer<Map<EDamageType, f32>>,
     }
+
+    #[cfg(debugger)]
+    binding!(FloatByEDamageTypeBinding => FloatByEDamageType);
 
     #[cfg(debugger)]
     #[derive(Class, Debug)]
@@ -581,11 +593,17 @@ mod combat {
     }
 
     #[cfg(debugger)]
+    binding!(XPDataBinding => XPData);
+
+    #[cfg(debugger)]
     #[derive(Class, Debug)]
     struct EnemyCombatTarget {
         #[rename = "currentHP"]
         current_hp: u32,
     }
+
+    #[cfg(debugger)]
+    binding!(EnemyCombatTargetBinding => EnemyCombatTarget);
 
     #[cfg(debugger)]
     #[derive(Copy, Clone, Debug, AnyBitPattern)]
@@ -627,19 +645,6 @@ mod combat {
             unsafe { core::mem::transmute(value.value) }
         }
     }
-
-    #[cfg(debugger)]
-    binding!(EncounterLootBinding => EncounterLoot);
-    #[cfg(debugger)]
-    binding!(EnemyCombatActorBinding => EnemyCombatActor);
-    #[cfg(debugger)]
-    binding!(EnemyCharacterDataBinding => EnemyCharacterData);
-    #[cfg(debugger)]
-    binding!(FloatByEDamageTypeBinding => FloatByEDamageType);
-    #[cfg(debugger)]
-    binding!(XPDataBinding => XPData);
-    #[cfg(debugger)]
-    binding!(EnemyCombatTargetBinding => EnemyCombatTarget);
 
     impl Combat {
         pub fn current_encounter(&self, process: &Process) -> Option<(Address64, Encounter)> {
@@ -751,7 +756,7 @@ mod combat {
                         let name = char_data.name_localization_id;
                         let name = loc
                             .lookup(process, name)
-                            .map_or_else(|| String::new(), |(n, _)| n);
+                            .map_or_else(String::new, |(n, _)| n);
 
                         Some(EnemyInfo {
                             hide_hp: actor.hide_hp,
