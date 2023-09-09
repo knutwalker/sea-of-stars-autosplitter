@@ -9,6 +9,7 @@ use core::{
 use asr::{
     arrayvec::ArrayString,
     game_engine::unity::il2cpp::{Class, Image, Module, Version},
+    time::Duration,
     Address, Address64, Process,
 };
 use bytemuck::AnyBitPattern;
@@ -1008,8 +1009,8 @@ pub struct CurrentProgress {
 impl CurrentProgress {
     pub fn play_time(&self) -> PlayTime {
         PlayTime {
-            session: self.timestamp as u64,
-            total: self.play_time as u64,
+            session: Duration::seconds_f64(self.timestamp),
+            total: Duration::seconds_f64(self.play_time),
         }
     }
 
@@ -1032,8 +1033,8 @@ impl CurrentProgress {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayTime {
-    pub session: u64,
-    pub total: u64,
+    pub session: Duration,
+    pub total: Duration,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1052,7 +1053,7 @@ pub struct Level {
 
 #[cfg(debugger)]
 mod inventory {
-    use ahash::HashSet;
+    use ahash::{HashSet, HashSetExt};
     use asr::{
         game_engine::unity::il2cpp::{Class, Image, Module},
         string::ArrayString,
@@ -1123,8 +1124,8 @@ mod inventory {
                 quantity,
                 manager,
                 number_of_owned_items: Watcher::new(),
-                all_key_items: HashSet::with_hasher(ahash::RandomState::new()),
-                owned_key_items: HashSet::with_hasher(ahash::RandomState::new()),
+                all_key_items: HashSet::new(),
+                owned_key_items: HashSet::new(),
             }
         }
 

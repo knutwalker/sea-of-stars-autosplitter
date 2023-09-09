@@ -148,7 +148,12 @@ impl Progress {
             {
                 let play_time = self.play_time.update_infallible(progress.play_time());
                 if play_time.changed() {
-                    log!("{:?}", play_time.current);
+                    log!(
+                        "this session={}, total={}",
+                        play_time.current.session,
+                        play_time.current.total
+                    );
+                    timer::set_game_time(play_time.current.total);
                 }
 
                 let first = self.activity.pair.is_none();
