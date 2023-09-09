@@ -289,6 +289,15 @@ struct Singleton<T> {
     address: Address,
 }
 
+#[derive(Copy, Clone)]
+struct Proc<'a>(&'a Process);
+
+impl<'a> MemReader for Proc<'a> {
+    fn read<T: AnyBitPattern>(&self, addr: u64) -> Option<T> {
+        self.0.read(Address64::from(addr)).ok()
+    }
+}
+
 mod title_screen {
     use asr::{
         game_engine::unity::il2cpp::{Class, Image, Module},
@@ -352,660 +361,6 @@ mod title_screen {
             } else {
                 GameStart::AlreadyRunning
             }
-        }
-    }
-}
-
-#[cfg(debugger)]
-mod loc {
-    use ahash::HashMap;
-    use asr::{
-        game_engine::unity::il2cpp::{Class, Image, Module},
-        Process,
-    };
-    use bytemuck::AnyBitPattern;
-    use csharp_mem::{CSString, List, Map, MemReader, Pointer};
-
-    use super::Singleton;
-
-    #[derive(Class, Debug)]
-    pub struct LocalizationManager {
-        #[rename = "locCategories"]
-        pub loc_categories: Pointer<Map<Pointer<CSString>, Pointer<LocCategory>>>,
-        #[rename = "locCategoryLanguages"]
-        pub loc_category_languages: Pointer<Map<Pointer<CSString>, Pointer<LocCategoryLanguage>>>,
-    }
-
-    impl LocalizationManagerBinding {
-        singleton!(LocalizationManager);
-    }
-
-    #[derive(Class, Debug)]
-    pub struct LocCategory {
-        #[rename = "categoryId"]
-        pub category_id: Pointer<CSString>,
-        #[rename = "locIndexByLocStringId"]
-        pub loc_index_by_loc_string_id: Pointer<LocIndexByLocStringId>,
-    }
-
-    #[derive(Class, Debug)]
-    pub struct LocIndexByLocStringId {
-        pub dictionary: Pointer<Map<Pointer<CSString>, u32>>,
-    }
-
-    #[derive(Class, Debug)]
-    pub struct LocCategoryLanguage {
-        #[rename = "locCategoryId"]
-        pub loc_category_id: Pointer<CSString>,
-        pub language: ELanguage,
-        pub strings: Pointer<List<Pointer<CSString>>>,
-    }
-
-    binding!(LocCategoryBinding => LocCategory);
-    binding!(LocIndexByLocStringIdBinding => LocIndexByLocStringId);
-    binding!(LocCategoryLanguageBinding => LocCategoryLanguage);
-
-    #[derive(Copy, Clone, Debug, AnyBitPattern)]
-    #[repr(C)]
-    pub struct LocalizationId {
-        pub category_name: Pointer<CSString>,
-        pub loc_id: Pointer<CSString>,
-    }
-
-    #[derive(Copy, Clone, Debug, AnyBitPattern)]
-    #[repr(C)]
-    pub struct ELanguage {
-        value: u32,
-    }
-
-    #[allow(unused)]
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    #[repr(u32)]
-    pub enum Language {
-        EN = 0,
-        JP = 1,
-        RU = 2,
-        KO = 3,
-        QC = 4,
-        FR = 5,
-        DE = 6,
-        ES = 7,
-        BR = 8,
-        CN = 9,
-        HK = 10,
-    }
-
-    impl From<ELanguage> for Language {
-        fn from(value: ELanguage) -> Self {
-            unsafe { core::mem::transmute(value.value) }
-        }
-    }
-
-    pub struct Localization {
-        manager: Singleton<LocalizationManagerBinding>,
-        category: LocCategoryBinding,
-        index_by_id: LocIndexByLocStringIdBinding,
-        category_language: LocCategoryLanguageBinding,
-    }
-
-    impl Localization {
-        pub async fn new(process: &Process, module: &Module) -> Self {
-            let image = module
-                .wait_get_image(process, "Sabotage.Localization")
-                .await;
-            let manager = LocalizationManagerBinding::new(process, module, &image).await;
-
-            let (category, index_by_id, category_language) = binds!(
-                process,
-                module,
-                &image,
-                (LocCategory, LocIndexByLocStringId, LocCategoryLanguage)
-            );
-
-            Self {
-                manager,
-                category,
-                index_by_id,
-                category_language,
-            }
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct Loc {
-        pub categories: HashMap<String, Category>,
-        pub strings: HashMap<String, CategoryLanguage>,
-    }
-
-    impl Localization {
-        pub fn resolve(&self, process: &Process) -> Option<Loc> {
-            let manager = LocalizationManagerBinding::resolve(&self.manager, process)?;
-            let process = super::Proc(process);
-
-            let categories = manager.loc_categories.resolve(process)?;
-            let categories = categories
-                .iter(process)
-                .filter_map(|(id, cateogry)| {
-                    let id = id.resolve(process)?.to_std_string(process);
-                    let category = cateogry.resolve_with((process, &self.category))?;
-                    let category = category.resolve(process, &self.index_by_id)?;
-                    Some((id, category))
-                })
-                .collect();
-
-            let strings = manager.loc_category_languages.resolve(process)?;
-            let strings = strings
-                .iter(process)
-                .filter_map(|(id, lang)| {
-                    let id = id.resolve(process)?.to_std_string(process);
-
-                    let lang = lang.resolve_with((process, &self.category_language))?;
-                    let lang = lang.resolve(process)?;
-                    Some((id, lang))
-                })
-                .collect();
-
-            Some(Loc {
-                categories,
-                strings,
-            })
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct Category {
-        pub id: Box<str>,
-        pub index: HashMap<Box<str>, usize>,
-    }
-
-    impl LocCategory {
-        fn resolve(
-            &self,
-            process: super::Proc<'_>,
-            index_by_id: &LocIndexByLocStringIdBinding,
-        ) -> Option<Category> {
-            let id = self
-                .category_id
-                .resolve(process)?
-                .to_std_string(process)
-                .into_boxed_str();
-
-            let index = self
-                .loc_index_by_loc_string_id
-                .resolve_with((process, index_by_id))?;
-
-            let index = index.dictionary.resolve(process)?;
-
-            let index = index
-                .iter(process)
-                .into_iter()
-                .flat_map(|(id, index)| {
-                    let id = id.resolve(process)?.to_std_string(process).into_boxed_str();
-                    let index = index as usize;
-                    Some((id, index))
-                })
-                .collect();
-
-            Some(Category { id, index })
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct CategoryLanguage {
-        pub id: Box<str>,
-        pub language: Language,
-        pub strings: List<Pointer<CSString>>, // Vec<Box<str>>
-    }
-
-    impl LocCategoryLanguage {
-        fn resolve(&self, process: super::Proc<'_>) -> Option<CategoryLanguage> {
-            let id = self
-                .loc_category_id
-                .resolve(process)?
-                .to_std_string(process)
-                .into_boxed_str();
-
-            let language = self.language.into();
-
-            let strings = self.strings.resolve(process)?;
-
-            // let strings = strings
-            //     .iter(process)
-            //     .flat_map(|o| {
-            //         Some(
-            //             o.resolve(process)?
-            //                 .to_std_string(process)
-            //                 .into_boxed_str(),
-            //         )
-            //     })
-            //     .collect();
-
-            Some(CategoryLanguage {
-                id,
-                language,
-                strings,
-            })
-        }
-    }
-
-    impl Loc {
-        pub async fn new(process: &Process, module: &Module, _image: &Image) -> Option<Self> {
-            let loc = Localization::new(process, module).await;
-            loc.resolve(process)
-        }
-
-        pub fn lookup<R: MemReader + Copy>(
-            &self,
-            process: R,
-            loc_id: LocalizationId,
-        ) -> Option<(String, Language)> {
-            let cat_id = loc_id
-                .category_name
-                .resolve(process)?
-                .to_std_string(process);
-
-            let cat = self.categories.get(&cat_id)?;
-            let strings = self.strings.get(&cat_id)?;
-
-            let loc_id = loc_id
-                .loc_id
-                .resolve(process)?
-                .to_std_string(process)
-                .into_boxed_str();
-
-            let index = *cat.index.get(&loc_id)?;
-
-            let string = strings.strings.get(process, index)?;
-            let string = string.resolve(process)?.to_std_string(process);
-
-            Some((string, strings.language))
-        }
-    }
-}
-
-mod progress {
-    #[cfg(debugger)]
-    use asr::{arrayvec::ArrayString, time::Duration};
-    use asr::{
-        game_engine::unity::il2cpp::{Class, Image, Module},
-        Process,
-    };
-    #[cfg(debugger)]
-    use bytemuck::AnyBitPattern;
-    #[cfg(debugger)]
-    use csharp_mem::{CSString, Pointer, Set};
-
-    use super::Singleton;
-
-    #[cfg(debugger)]
-    #[derive(Class, Debug)]
-    struct ProgressionManager {
-        timestamp: f64,
-        #[rename = "playTime"]
-        play_time: f64,
-        #[rename = "defeatedPermaDeathEnemies"]
-        defeated_perma_death_enemies: Pointer<Set<Pointer<CSString>>>,
-    }
-
-    #[cfg(debugger)]
-    #[derive(Class, Debug)]
-    struct ActivityManager {
-        #[rename = "mainActivity"]
-        main_activity: Pointer<CSString>,
-        #[rename = "subActivityIndex"]
-        sub_activity_index: u32,
-    }
-
-    #[cfg(not(debugger))]
-    #[derive(Class, Debug)]
-    struct LevelManager {
-        #[rename = "loadingLevel"]
-        is_loading: bool,
-    }
-
-    #[cfg(debugger)]
-    #[derive(Class, Debug)]
-    struct LevelManager {
-        #[rename = "loadingLevel"]
-        is_loading: bool,
-
-        #[rename = "currentLevel"]
-        current_level: LevelReference,
-
-        #[rename = "previousLevelInfo"]
-        previous_level_info: Pointer<LoadedLevelInfo>,
-    }
-
-    #[cfg(debugger)]
-    #[derive(Class, Debug)]
-    struct LoadedLevelInfo {
-        level: LevelReference,
-    }
-
-    #[cfg(debugger)]
-    #[derive(Copy, Clone, Debug, AnyBitPattern)]
-    struct LevelReference {
-        guid: Pointer<CSString>,
-    }
-
-    #[cfg(debugger)]
-    impl ProgressionManagerBinding {
-        singleton!(ProgressionManager);
-    }
-
-    #[cfg(debugger)]
-    impl ActivityManagerBinding {
-        singleton!(ActivityManager);
-    }
-    impl LevelManagerBinding {
-        singleton!(LevelManager);
-    }
-
-    #[cfg(debugger)]
-    binding!(LoadedLevelInfoBinding => LoadedLevelInfo);
-
-    pub struct Progression {
-        level_manager: Singleton<LevelManagerBinding>,
-        #[cfg(debugger)]
-        progression_manager: Singleton<ProgressionManagerBinding>,
-        #[cfg(debugger)]
-        activity_manager: Singleton<ActivityManagerBinding>,
-        #[cfg(debugger)]
-        loaded_level_info: LoadedLevelInfoBinding,
-    }
-
-    impl Progression {
-        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
-            let level_manager = LevelManagerBinding::new(process, module, image).await;
-
-            #[cfg(debugger)]
-            {
-                let loaded_level_info = binds!(process, module, image, (LoadedLevelInfo));
-                let progression_manager =
-                    ProgressionManagerBinding::new(process, module, image).await;
-                let activity_manager = ActivityManagerBinding::new(process, module, image).await;
-
-                Self {
-                    level_manager,
-                    progression_manager,
-                    activity_manager,
-                    loaded_level_info,
-                }
-            }
-
-            #[cfg(not(debugger))]
-            {
-                Self { level_manager }
-            }
-        }
-
-        pub fn get_progress(&self, process: &Process) -> Option<CurrentProgress> {
-            let process = super::Proc(process);
-
-            let level = LevelManagerBinding::resolve(&self.level_manager, process.0)?;
-
-            #[cfg(debugger)]
-            {
-                let progression =
-                    ProgressionManagerBinding::resolve(&self.progression_manager, process.0)?;
-
-                let number_of_defeated_perma_death_enemies = progression
-                    .defeated_perma_death_enemies
-                    .resolve(process)?
-                    .size();
-
-                let activity = ActivityManagerBinding::resolve(&self.activity_manager, process.0)?;
-                let main_activity = activity.main_activity.resolve(process)?.to_string(process);
-
-                let current_level = level
-                    .current_level
-                    .guid
-                    .resolve(process)?
-                    .to_string(process);
-
-                let previous_level = level
-                    .previous_level_info
-                    .resolve_with((process, &self.loaded_level_info))
-                    .and_then(|o| o.level.guid.resolve(process).map(|o| o.to_string(process)))
-                    .unwrap_or_default();
-
-                Some(CurrentProgress {
-                    is_loading: level.is_loading,
-                    timestamp: progression.timestamp,
-                    play_time: progression.play_time,
-                    main_activity,
-                    sub_activity_index: activity.sub_activity_index,
-                    current_level,
-                    previous_level,
-                    number_of_defeated_perma_death_enemies,
-                })
-            }
-
-            #[cfg(not(debugger))]
-            {
-                Some(CurrentProgress {
-                    is_loading: level.is_loading,
-                })
-            }
-        }
-    }
-
-    #[derive(Clone, PartialEq)]
-    pub struct CurrentProgress {
-        pub is_loading: bool,
-        #[cfg(debugger)]
-        pub timestamp: f64,
-        #[cfg(debugger)]
-        pub play_time: f64,
-        #[cfg(debugger)]
-        pub main_activity: ArrayString<36>,
-        #[cfg(debugger)]
-        pub sub_activity_index: u32,
-        #[cfg(debugger)]
-        pub current_level: ArrayString<36>,
-        #[cfg(debugger)]
-        pub previous_level: ArrayString<36>,
-        #[cfg(debugger)]
-        pub number_of_defeated_perma_death_enemies: u32,
-    }
-
-    #[cfg(debugger)]
-    impl CurrentProgress {
-        pub fn play_time(&self) -> PlayTime {
-            PlayTime {
-                session: Duration::seconds_f64(self.timestamp),
-                total: Duration::seconds_f64(self.play_time),
-            }
-        }
-
-        pub fn activity(&self) -> Activity {
-            Activity {
-                id: self.main_activity,
-                sub_index: self.sub_activity_index,
-                defeated_perma_death_enemies: self.number_of_defeated_perma_death_enemies,
-            }
-        }
-
-        pub fn level(&self) -> Level {
-            Level {
-                is_loading: self.is_loading,
-                current_level: self.current_level,
-                previous_level: self.previous_level,
-            }
-        }
-    }
-
-    #[cfg(debugger)]
-    #[derive(Clone, Debug, PartialEq, Eq)]
-    pub struct PlayTime {
-        pub session: Duration,
-        pub total: Duration,
-    }
-
-    #[cfg(debugger)]
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct Activity {
-        pub id: ArrayString<36>,
-        pub sub_index: u32,
-        pub defeated_perma_death_enemies: u32,
-    }
-
-    #[cfg(debugger)]
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct Level {
-        pub is_loading: bool,
-        pub current_level: ArrayString<36>,
-        pub previous_level: ArrayString<36>,
-    }
-}
-
-#[cfg(debugger)]
-mod inventory {
-    use ahash::{HashSet, HashSetExt};
-    use asr::{
-        game_engine::unity::il2cpp::{Class, Image, Module},
-        string::ArrayString,
-        watcher::Watcher,
-        Process,
-    };
-    use bytemuck::AnyBitPattern;
-
-    use csharp_mem::{CSString, Map, Pointer};
-
-    use super::Singleton;
-
-    #[derive(Class, Debug)]
-    struct InventoryManager {
-        #[rename = "allInventoryItemData"]
-        all_items: Pointer<Map<InventoryItemReference, Pointer<InventoryItem>>>,
-        #[rename = "ownedInventoryItems"]
-        owned_items: Pointer<QuantityByInventoryItemReference>,
-    }
-
-    #[derive(Class, Debug)]
-    struct InventoryItem {
-        guid: Pointer<CSString>,
-    }
-
-    #[derive(Class, Debug)]
-    struct KeyItem {}
-
-    #[derive(Debug, Copy, Clone, AnyBitPattern)]
-    struct InventoryItemReference {
-        guid: Pointer<CSString>,
-    }
-
-    #[derive(Class, Debug)]
-    struct QuantityByInventoryItemReference {
-        dictionary: Pointer<Map<InventoryItemReference, u32>>,
-    }
-
-    impl InventoryManagerBinding {
-        singleton!(InventoryManager);
-    }
-
-    binding!(QuantityByInventoryItemReferenceBinding => QuantityByInventoryItemReference);
-    binding!(InventoryItemBinding => InventoryItem);
-
-    pub struct Inventory {
-        inventory_item: InventoryItemBinding,
-        key_item: KeyItemBinding,
-        quantity: QuantityByInventoryItemReferenceBinding,
-        manager: Singleton<InventoryManagerBinding>,
-        all_key_items: HashSet<ArrayString<32>>,
-        number_of_owned_items: Watcher<u32>,
-        owned_key_items: HashSet<ArrayString<32>>,
-    }
-
-    impl Inventory {
-        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
-            let (inventory_item, key_item, quantity) = binds!(
-                process,
-                module,
-                image,
-                (InventoryItem, KeyItem, QuantityByInventoryItemReference)
-            );
-            let manager = InventoryManagerBinding::new(process, module, image).await;
-            Self {
-                inventory_item,
-                key_item,
-                quantity,
-                manager,
-                number_of_owned_items: Watcher::new(),
-                all_key_items: HashSet::new(),
-                owned_key_items: HashSet::new(),
-            }
-        }
-
-        pub fn refresh<'a>(
-            &'a mut self,
-            process: &'a Process,
-            module: &'a Module,
-        ) -> impl Iterator<Item = ArrayString<32>> + '_ {
-            self.cache_available_items(process, module);
-            self.new_owned_key_items(process)
-        }
-
-        pub fn cache_available_items(&mut self, process: &Process, module: &Module) -> bool {
-            if !self.all_key_items.is_empty() {
-                return false;
-            }
-
-            (|| {
-                let process = super::Proc(process);
-                let manager = InventoryManagerBinding::resolve(&self.manager, process.0)?;
-                let all_items = manager.all_items.resolve(process)?;
-
-                for (_, v) in all_items.iter(process) {
-                    let is_key_item = self
-                        .key_item
-                        .class()
-                        .is_instance(process.0, module, v.address_value())
-                        .ok()?;
-
-                    if is_key_item {
-                        let item = v.resolve_with((process, &self.inventory_item))?;
-                        let item = item.guid.resolve(process)?;
-                        let item = item.to_string(process);
-                        self.all_key_items.insert(item);
-                    }
-                }
-
-                Some(())
-            })();
-
-            !self.all_key_items.is_empty()
-        }
-
-        pub fn new_owned_key_items<'a>(
-            &'a mut self,
-            process: &'a Process,
-        ) -> impl Iterator<Item = ArrayString<32>> + 'a {
-            Some(&self.all_key_items)
-                .and_then(|key_items| {
-                    let process = super::Proc(process);
-                    let manager = InventoryManagerBinding::resolve(&self.manager, process.0)?;
-                    let owned = manager
-                        .owned_items
-                        .resolve_with((process, &self.quantity))?;
-                    let owned = owned.dictionary.resolve(process)?;
-
-                    let amount = owned.size();
-                    let owned_items = &mut self.owned_key_items;
-                    self.number_of_owned_items
-                        .update_infallible(amount)
-                        .changed()
-                        .then(move || {
-                            owned.iter(process).filter_map(move |(item, _amount)| {
-                                let item = item.guid.resolve(process)?;
-                                let item = item.to_string(process);
-                                (key_items.contains(&item) && owned_items.insert(item))
-                                    .then_some(item)
-                            })
-                        })
-                })
-                .into_iter()
-                .flatten()
         }
     }
 }
@@ -1616,11 +971,645 @@ mod combat {
     }
 }
 
-#[derive(Copy, Clone)]
-struct Proc<'a>(&'a Process);
+mod progress {
+    #[cfg(debugger)]
+    use asr::{arrayvec::ArrayString, time::Duration};
+    use asr::{
+        game_engine::unity::il2cpp::{Class, Image, Module},
+        Process,
+    };
+    #[cfg(debugger)]
+    use bytemuck::AnyBitPattern;
+    #[cfg(debugger)]
+    use csharp_mem::{CSString, Pointer, Set};
 
-impl<'a> MemReader for Proc<'a> {
-    fn read<T: AnyBitPattern>(&self, addr: u64) -> Option<T> {
-        self.0.read(Address64::from(addr)).ok()
+    use super::Singleton;
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct ProgressionManager {
+        timestamp: f64,
+        #[rename = "playTime"]
+        play_time: f64,
+        #[rename = "defeatedPermaDeathEnemies"]
+        defeated_perma_death_enemies: Pointer<Set<Pointer<CSString>>>,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct ActivityManager {
+        #[rename = "mainActivity"]
+        main_activity: Pointer<CSString>,
+        #[rename = "subActivityIndex"]
+        sub_activity_index: u32,
+    }
+
+    #[cfg(not(debugger))]
+    #[derive(Class, Debug)]
+    struct LevelManager {
+        #[rename = "loadingLevel"]
+        is_loading: bool,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct LevelManager {
+        #[rename = "loadingLevel"]
+        is_loading: bool,
+
+        #[rename = "currentLevel"]
+        current_level: LevelReference,
+
+        #[rename = "previousLevelInfo"]
+        previous_level_info: Pointer<LoadedLevelInfo>,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct LoadedLevelInfo {
+        level: LevelReference,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Copy, Clone, Debug, AnyBitPattern)]
+    struct LevelReference {
+        guid: Pointer<CSString>,
+    }
+
+    #[cfg(debugger)]
+    impl ProgressionManagerBinding {
+        singleton!(ProgressionManager);
+    }
+
+    #[cfg(debugger)]
+    impl ActivityManagerBinding {
+        singleton!(ActivityManager);
+    }
+    impl LevelManagerBinding {
+        singleton!(LevelManager);
+    }
+
+    #[cfg(debugger)]
+    binding!(LoadedLevelInfoBinding => LoadedLevelInfo);
+
+    pub struct Progression {
+        level_manager: Singleton<LevelManagerBinding>,
+        #[cfg(debugger)]
+        progression_manager: Singleton<ProgressionManagerBinding>,
+        #[cfg(debugger)]
+        activity_manager: Singleton<ActivityManagerBinding>,
+        #[cfg(debugger)]
+        loaded_level_info: LoadedLevelInfoBinding,
+    }
+
+    impl Progression {
+        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
+            let level_manager = LevelManagerBinding::new(process, module, image).await;
+
+            #[cfg(debugger)]
+            {
+                let loaded_level_info = binds!(process, module, image, (LoadedLevelInfo));
+                let progression_manager =
+                    ProgressionManagerBinding::new(process, module, image).await;
+                let activity_manager = ActivityManagerBinding::new(process, module, image).await;
+
+                Self {
+                    level_manager,
+                    progression_manager,
+                    activity_manager,
+                    loaded_level_info,
+                }
+            }
+
+            #[cfg(not(debugger))]
+            {
+                Self { level_manager }
+            }
+        }
+
+        pub fn get_progress(&self, process: &Process) -> Option<CurrentProgress> {
+            let process = super::Proc(process);
+
+            let level = LevelManagerBinding::resolve(&self.level_manager, process.0)?;
+
+            #[cfg(debugger)]
+            {
+                let progression =
+                    ProgressionManagerBinding::resolve(&self.progression_manager, process.0)?;
+
+                let number_of_defeated_perma_death_enemies = progression
+                    .defeated_perma_death_enemies
+                    .resolve(process)?
+                    .size();
+
+                let activity = ActivityManagerBinding::resolve(&self.activity_manager, process.0)?;
+                let main_activity = activity.main_activity.resolve(process)?.to_string(process);
+
+                let current_level = level
+                    .current_level
+                    .guid
+                    .resolve(process)?
+                    .to_string(process);
+
+                let previous_level = level
+                    .previous_level_info
+                    .resolve_with((process, &self.loaded_level_info))
+                    .and_then(|o| o.level.guid.resolve(process).map(|o| o.to_string(process)))
+                    .unwrap_or_default();
+
+                Some(CurrentProgress {
+                    is_loading: level.is_loading,
+                    timestamp: progression.timestamp,
+                    play_time: progression.play_time,
+                    main_activity,
+                    sub_activity_index: activity.sub_activity_index,
+                    current_level,
+                    previous_level,
+                    number_of_defeated_perma_death_enemies,
+                })
+            }
+
+            #[cfg(not(debugger))]
+            {
+                Some(CurrentProgress {
+                    is_loading: level.is_loading,
+                })
+            }
+        }
+    }
+
+    #[derive(Clone, PartialEq)]
+    pub struct CurrentProgress {
+        pub is_loading: bool,
+        #[cfg(debugger)]
+        pub timestamp: f64,
+        #[cfg(debugger)]
+        pub play_time: f64,
+        #[cfg(debugger)]
+        pub main_activity: ArrayString<36>,
+        #[cfg(debugger)]
+        pub sub_activity_index: u32,
+        #[cfg(debugger)]
+        pub current_level: ArrayString<36>,
+        #[cfg(debugger)]
+        pub previous_level: ArrayString<36>,
+        #[cfg(debugger)]
+        pub number_of_defeated_perma_death_enemies: u32,
+    }
+
+    #[cfg(debugger)]
+    impl CurrentProgress {
+        pub fn play_time(&self) -> PlayTime {
+            PlayTime {
+                session: Duration::seconds_f64(self.timestamp),
+                total: Duration::seconds_f64(self.play_time),
+            }
+        }
+
+        pub fn activity(&self) -> Activity {
+            Activity {
+                id: self.main_activity,
+                sub_index: self.sub_activity_index,
+                defeated_perma_death_enemies: self.number_of_defeated_perma_death_enemies,
+            }
+        }
+
+        pub fn level(&self) -> Level {
+            Level {
+                is_loading: self.is_loading,
+                current_level: self.current_level,
+                previous_level: self.previous_level,
+            }
+        }
+    }
+
+    #[cfg(debugger)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct PlayTime {
+        pub session: Duration,
+        pub total: Duration,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Activity {
+        pub id: ArrayString<36>,
+        pub sub_index: u32,
+        pub defeated_perma_death_enemies: u32,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Level {
+        pub is_loading: bool,
+        pub current_level: ArrayString<36>,
+        pub previous_level: ArrayString<36>,
+    }
+}
+
+#[cfg(debugger)]
+mod loc {
+    use ahash::HashMap;
+    use asr::{
+        game_engine::unity::il2cpp::{Class, Image, Module},
+        Process,
+    };
+    use bytemuck::AnyBitPattern;
+    use csharp_mem::{CSString, List, Map, MemReader, Pointer};
+
+    use super::Singleton;
+
+    #[derive(Class, Debug)]
+    pub struct LocalizationManager {
+        #[rename = "locCategories"]
+        pub loc_categories: Pointer<Map<Pointer<CSString>, Pointer<LocCategory>>>,
+        #[rename = "locCategoryLanguages"]
+        pub loc_category_languages: Pointer<Map<Pointer<CSString>, Pointer<LocCategoryLanguage>>>,
+    }
+
+    impl LocalizationManagerBinding {
+        singleton!(LocalizationManager);
+    }
+
+    #[derive(Class, Debug)]
+    pub struct LocCategory {
+        #[rename = "categoryId"]
+        pub category_id: Pointer<CSString>,
+        #[rename = "locIndexByLocStringId"]
+        pub loc_index_by_loc_string_id: Pointer<LocIndexByLocStringId>,
+    }
+
+    #[derive(Class, Debug)]
+    pub struct LocIndexByLocStringId {
+        pub dictionary: Pointer<Map<Pointer<CSString>, u32>>,
+    }
+
+    #[derive(Class, Debug)]
+    pub struct LocCategoryLanguage {
+        #[rename = "locCategoryId"]
+        pub loc_category_id: Pointer<CSString>,
+        pub language: ELanguage,
+        pub strings: Pointer<List<Pointer<CSString>>>,
+    }
+
+    binding!(LocCategoryBinding => LocCategory);
+    binding!(LocIndexByLocStringIdBinding => LocIndexByLocStringId);
+    binding!(LocCategoryLanguageBinding => LocCategoryLanguage);
+
+    #[derive(Copy, Clone, Debug, AnyBitPattern)]
+    #[repr(C)]
+    pub struct LocalizationId {
+        pub category_name: Pointer<CSString>,
+        pub loc_id: Pointer<CSString>,
+    }
+
+    #[derive(Copy, Clone, Debug, AnyBitPattern)]
+    #[repr(C)]
+    pub struct ELanguage {
+        value: u32,
+    }
+
+    #[allow(unused)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[repr(u32)]
+    pub enum Language {
+        EN = 0,
+        JP = 1,
+        RU = 2,
+        KO = 3,
+        QC = 4,
+        FR = 5,
+        DE = 6,
+        ES = 7,
+        BR = 8,
+        CN = 9,
+        HK = 10,
+    }
+
+    impl From<ELanguage> for Language {
+        fn from(value: ELanguage) -> Self {
+            unsafe { core::mem::transmute(value.value) }
+        }
+    }
+
+    pub struct Localization {
+        manager: Singleton<LocalizationManagerBinding>,
+        category: LocCategoryBinding,
+        index_by_id: LocIndexByLocStringIdBinding,
+        category_language: LocCategoryLanguageBinding,
+    }
+
+    impl Localization {
+        pub async fn new(process: &Process, module: &Module) -> Self {
+            let image = module
+                .wait_get_image(process, "Sabotage.Localization")
+                .await;
+            let manager = LocalizationManagerBinding::new(process, module, &image).await;
+
+            let (category, index_by_id, category_language) = binds!(
+                process,
+                module,
+                &image,
+                (LocCategory, LocIndexByLocStringId, LocCategoryLanguage)
+            );
+
+            Self {
+                manager,
+                category,
+                index_by_id,
+                category_language,
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Loc {
+        pub categories: HashMap<String, Category>,
+        pub strings: HashMap<String, CategoryLanguage>,
+    }
+
+    impl Localization {
+        pub fn resolve(&self, process: &Process) -> Option<Loc> {
+            let manager = LocalizationManagerBinding::resolve(&self.manager, process)?;
+            let process = super::Proc(process);
+
+            let categories = manager.loc_categories.resolve(process)?;
+            let categories = categories
+                .iter(process)
+                .filter_map(|(id, cateogry)| {
+                    let id = id.resolve(process)?.to_std_string(process);
+                    let category = cateogry.resolve_with((process, &self.category))?;
+                    let category = category.resolve(process, &self.index_by_id)?;
+                    Some((id, category))
+                })
+                .collect();
+
+            let strings = manager.loc_category_languages.resolve(process)?;
+            let strings = strings
+                .iter(process)
+                .filter_map(|(id, lang)| {
+                    let id = id.resolve(process)?.to_std_string(process);
+
+                    let lang = lang.resolve_with((process, &self.category_language))?;
+                    let lang = lang.resolve(process)?;
+                    Some((id, lang))
+                })
+                .collect();
+
+            Some(Loc {
+                categories,
+                strings,
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct Category {
+        pub id: Box<str>,
+        pub index: HashMap<Box<str>, usize>,
+    }
+
+    impl LocCategory {
+        fn resolve(
+            &self,
+            process: super::Proc<'_>,
+            index_by_id: &LocIndexByLocStringIdBinding,
+        ) -> Option<Category> {
+            let id = self
+                .category_id
+                .resolve(process)?
+                .to_std_string(process)
+                .into_boxed_str();
+
+            let index = self
+                .loc_index_by_loc_string_id
+                .resolve_with((process, index_by_id))?;
+
+            let index = index.dictionary.resolve(process)?;
+
+            let index = index
+                .iter(process)
+                .into_iter()
+                .flat_map(|(id, index)| {
+                    let id = id.resolve(process)?.to_std_string(process).into_boxed_str();
+                    let index = index as usize;
+                    Some((id, index))
+                })
+                .collect();
+
+            Some(Category { id, index })
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct CategoryLanguage {
+        pub id: Box<str>,
+        pub language: Language,
+        pub strings: List<Pointer<CSString>>,
+    }
+
+    impl LocCategoryLanguage {
+        fn resolve(&self, process: super::Proc<'_>) -> Option<CategoryLanguage> {
+            let id = self
+                .loc_category_id
+                .resolve(process)?
+                .to_std_string(process)
+                .into_boxed_str();
+
+            let language = self.language.into();
+
+            let strings = self.strings.resolve(process)?;
+
+            Some(CategoryLanguage {
+                id,
+                language,
+                strings,
+            })
+        }
+    }
+
+    impl Loc {
+        pub async fn new(process: &Process, module: &Module, _image: &Image) -> Option<Self> {
+            let loc = Localization::new(process, module).await;
+            loc.resolve(process)
+        }
+
+        pub fn lookup<R: MemReader + Copy>(
+            &self,
+            process: R,
+            loc_id: LocalizationId,
+        ) -> Option<(String, Language)> {
+            let cat_id = loc_id
+                .category_name
+                .resolve(process)?
+                .to_std_string(process);
+
+            let cat = self.categories.get(&cat_id)?;
+            let strings = self.strings.get(&cat_id)?;
+
+            let loc_id = loc_id
+                .loc_id
+                .resolve(process)?
+                .to_std_string(process)
+                .into_boxed_str();
+
+            let index = *cat.index.get(&loc_id)?;
+
+            let string = strings.strings.get(process, index)?;
+            let string = string.resolve(process)?.to_std_string(process);
+
+            Some((string, strings.language))
+        }
+    }
+}
+
+#[cfg(debugger)]
+mod inventory {
+    use ahash::{HashSet, HashSetExt};
+    use asr::{
+        game_engine::unity::il2cpp::{Class, Image, Module},
+        string::ArrayString,
+        watcher::Watcher,
+        Process,
+    };
+    use bytemuck::AnyBitPattern;
+
+    use csharp_mem::{CSString, Map, Pointer};
+
+    use super::Singleton;
+
+    #[derive(Class, Debug)]
+    struct InventoryManager {
+        #[rename = "allInventoryItemData"]
+        all_items: Pointer<Map<InventoryItemReference, Pointer<InventoryItem>>>,
+        #[rename = "ownedInventoryItems"]
+        owned_items: Pointer<QuantityByInventoryItemReference>,
+    }
+
+    #[derive(Class, Debug)]
+    struct InventoryItem {
+        guid: Pointer<CSString>,
+    }
+
+    #[derive(Class, Debug)]
+    struct KeyItem {}
+
+    #[derive(Debug, Copy, Clone, AnyBitPattern)]
+    struct InventoryItemReference {
+        guid: Pointer<CSString>,
+    }
+
+    #[derive(Class, Debug)]
+    struct QuantityByInventoryItemReference {
+        dictionary: Pointer<Map<InventoryItemReference, u32>>,
+    }
+
+    impl InventoryManagerBinding {
+        singleton!(InventoryManager);
+    }
+
+    binding!(QuantityByInventoryItemReferenceBinding => QuantityByInventoryItemReference);
+    binding!(InventoryItemBinding => InventoryItem);
+
+    pub struct Inventory {
+        inventory_item: InventoryItemBinding,
+        key_item: KeyItemBinding,
+        quantity: QuantityByInventoryItemReferenceBinding,
+        manager: Singleton<InventoryManagerBinding>,
+        all_key_items: HashSet<ArrayString<32>>,
+        number_of_owned_items: Watcher<u32>,
+        owned_key_items: HashSet<ArrayString<32>>,
+    }
+
+    impl Inventory {
+        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
+            let (inventory_item, key_item, quantity) = binds!(
+                process,
+                module,
+                image,
+                (InventoryItem, KeyItem, QuantityByInventoryItemReference)
+            );
+            let manager = InventoryManagerBinding::new(process, module, image).await;
+            Self {
+                inventory_item,
+                key_item,
+                quantity,
+                manager,
+                number_of_owned_items: Watcher::new(),
+                all_key_items: HashSet::new(),
+                owned_key_items: HashSet::new(),
+            }
+        }
+
+        pub fn refresh<'a>(
+            &'a mut self,
+            process: &'a Process,
+            module: &'a Module,
+        ) -> impl Iterator<Item = ArrayString<32>> + '_ {
+            self.cache_available_items(process, module);
+            self.new_owned_key_items(process)
+        }
+
+        pub fn cache_available_items(&mut self, process: &Process, module: &Module) -> bool {
+            if !self.all_key_items.is_empty() {
+                return false;
+            }
+
+            (|| {
+                let process = super::Proc(process);
+                let manager = InventoryManagerBinding::resolve(&self.manager, process.0)?;
+                let all_items = manager.all_items.resolve(process)?;
+
+                for (_, v) in all_items.iter(process) {
+                    let is_key_item = self
+                        .key_item
+                        .class()
+                        .is_instance(process.0, module, v.address_value())
+                        .ok()?;
+
+                    if is_key_item {
+                        let item = v.resolve_with((process, &self.inventory_item))?;
+                        let item = item.guid.resolve(process)?;
+                        let item = item.to_string(process);
+                        self.all_key_items.insert(item);
+                    }
+                }
+
+                Some(())
+            })();
+
+            !self.all_key_items.is_empty()
+        }
+
+        pub fn new_owned_key_items<'a>(
+            &'a mut self,
+            process: &'a Process,
+        ) -> impl Iterator<Item = ArrayString<32>> + 'a {
+            Some(&self.all_key_items)
+                .and_then(|key_items| {
+                    let process = super::Proc(process);
+                    let manager = InventoryManagerBinding::resolve(&self.manager, process.0)?;
+                    let owned = manager
+                        .owned_items
+                        .resolve_with((process, &self.quantity))?;
+                    let owned = owned.dictionary.resolve(process)?;
+
+                    let amount = owned.size();
+                    let owned_items = &mut self.owned_key_items;
+                    self.number_of_owned_items
+                        .update_infallible(amount)
+                        .changed()
+                        .then(move || {
+                            owned.iter(process).filter_map(move |(item, _amount)| {
+                                let item = item.guid.resolve(process)?;
+                                let item = item.to_string(process);
+                                (key_items.contains(&item) && owned_items.insert(item))
+                                    .then_some(item)
+                            })
+                        })
+                })
+                .into_iter()
+                .flatten()
+        }
     }
 }
