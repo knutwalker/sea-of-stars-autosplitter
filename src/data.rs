@@ -194,13 +194,15 @@ impl<'a> Data<'a> {
 
 macro_rules! binds {
     ($process:expr, $module:expr, $image:expr, ($($cls:ty),+ $(,)?)) => {{
-        (
-            $({
-                let binding = <$cls>::bind($process, $module, $image).await;
-                log!(concat!("Created binding for class ", stringify!($cls)));
-                binding
-            }),+
-        )
+        let res = (
+            $(<$cls>::bind($process, $module, $image).await),+
+        );
+
+        $({
+            log!(concat!("Created binding for class ", stringify!($cls)));
+        })+
+
+        res
     }};
 }
 
