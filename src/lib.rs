@@ -188,8 +188,8 @@ impl Progress {
 
     async fn check_encounter(&mut self, data: &mut Data<'_>) -> Option<bool> {
         match self.encounter {
-            Some(enc) => match data.resolve_encounter(enc) {
-                Some(enc) if enc.done => {
+            Some(enc) => match data.encounter(Some(enc)).await {
+                Some((_, enc)) if enc.done => {
                     #[cfg(debugger)]
                     data.dump_current_encounter().await;
                     self.encounter = None;
@@ -205,7 +205,7 @@ impl Progress {
                 }
             },
             None => {
-                let (address, encounter) = data.encounter()?;
+                let (address, encounter) = data.encounter(None).await?;
                 if !encounter.done {
                     #[cfg(debugger)]
                     data.dump_current_encounter().await;

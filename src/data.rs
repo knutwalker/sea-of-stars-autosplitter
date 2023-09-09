@@ -1,5 +1,3 @@
-#[cfg(debugger)]
-use core::fmt;
 use core::{
     future::Future,
     pin::Pin,
@@ -14,23 +12,23 @@ use asr::{
 };
 use bytemuck::AnyBitPattern;
 
+use csharp_mem::MemReader;
 #[cfg(debugger)]
-use csharp_mem::{CSString, List, Map, Set};
-use csharp_mem::{MemReader, Pointer};
+use csharp_mem::{CSString, Pointer, Set};
 
 pub use self::title_screen::GameStart;
-use self::title_screen::TitleScreen;
+use self::{
+    combat::{Combat, Encounter},
+    title_screen::TitleScreen,
+};
 
 pub struct Data<'a> {
     process: &'a Process,
     module: Module,
     image: Image,
     title_screen: LateInit<TitleScreen>,
-    combat: Singleton<CombatManagerBinding>,
-    encounter: EncounterBinding,
+    combat: LateInit<Combat>,
     progression: LateInit<Progression>,
-    #[cfg(debugger)]
-    combat2: LateInit<Combat>,
     #[cfg(debugger)]
     loc: LateInit<Option<loc::Loc>>,
     #[cfg(debugger)]
@@ -54,12 +52,15 @@ impl Data<'_> {
         progression.get_progress(self.process)
     }
 
-    pub fn encounter(&self) -> Option<(Address64, Encounter)> {
-        let combat = CombatManagerBinding::resolve(&self.combat, self.process)?;
-        let encounter = combat
-            .encounter
-            .resolve_with((self.process, &self.encounter))?;
-        Some((combat.encounter.address_value().into(), encounter))
+    pub async fn encounter(&mut self, enc: Option<Address64>) -> Option<(Address64, Encounter)> {
+        let combat = self
+            .combat
+            .try_get(self.process, &self.module, &self.image, Combat::new)
+            .await?;
+        match enc {
+            Some(enc) => combat.resolve_encounter(self.process, enc),
+            None => combat.current_encounter(self.process),
+        }
     }
 
     #[cfg(debugger)]
@@ -123,9 +124,9 @@ impl Data<'_> {
     }
 
     #[cfg(debugger)]
-    pub async fn deep_resolve_encounter(&mut self) -> Option<combat::Encounter> {
+    pub async fn deep_resolve_encounter(&mut self) -> Option<combat::BattleEncounter> {
         let combat = self
-            .combat2
+            .combat
             .try_get(self.process, &self.module, &self.image, Combat::new)
             .await?;
 
@@ -136,10 +137,6 @@ impl Data<'_> {
             .as_ref()?;
 
         combat.resolve(self.process, loc)
-    }
-
-    pub fn resolve_encounter(&self, address: Address64) -> Option<Encounter> {
-        self.encounter.read(self.process, address.into()).ok()
     }
 
     #[cfg(debugger)]
@@ -154,6 +151,27 @@ impl Data<'_> {
             .await
             .into_iter()
             .flat_map(|o| o.refresh(self.process, &self.module))
+    }
+}
+
+impl<'a> Data<'a> {
+    pub async fn new(process: &'a Process) -> Data<'a> {
+        let module = Module::wait_attach(process, Version::V2020).await;
+        let image = module.wait_get_default_image(process).await;
+        log!("Attached to the game");
+
+        Self {
+            process,
+            module,
+            image,
+            title_screen: LateInit::new(),
+            combat: LateInit::new(),
+            progression: LateInit::new(),
+            #[cfg(debugger)]
+            inventory: LateInit::new(),
+            #[cfg(debugger)]
+            loc: LateInit::new(),
+        }
     }
 }
 
@@ -336,203 +354,6 @@ mod title_screen {
                 GameStart::AlreadyRunning
             }
         }
-    }
-}
-
-#[cfg(debugger)]
-struct Combat {
-    manager: Singleton<CombatManagerBinding>,
-    encounter: EncounterBinding,
-    loot: EncounterLootBinding,
-    actor: EnemyCombatActorBinding,
-    char_data: EnemyCharacterDataBinding,
-    by_damage: FloatByEDamageTypeBinding,
-    xp: XPDataBinding,
-    e_target: EnemyCombatTargetBinding,
-}
-
-#[cfg(debugger)]
-impl fmt::Debug for Combat {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Combat").finish_non_exhaustive()
-    }
-}
-
-#[cfg(debugger)]
-impl Combat {
-    pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
-        let (encounter, loot, actor, char_data, by_damage, xp, e_target) = binds!(
-            process,
-            module,
-            image,
-            (
-                Encounter,
-                EncounterLoot,
-                EnemyCombatActor,
-                EnemyCharacterData,
-                FloatByEDamageType,
-                XPData,
-                EnemyCombatTarget,
-            )
-        );
-
-        let manager = CombatManagerBinding::new(process, module, image).await;
-        Self {
-            manager,
-            encounter,
-            loot,
-            actor,
-            char_data,
-            by_damage,
-            xp,
-            e_target,
-        }
-    }
-}
-
-#[derive(Class)]
-struct CombatManager {
-    #[rename = "currentEncounter"]
-    encounter: Pointer<Encounter>,
-}
-
-#[cfg(not(debugger))]
-#[derive(Class, Debug)]
-pub struct Encounter {
-    #[rename = "encounterDone"]
-    pub done: bool,
-    #[rename = "bossEncounter"]
-    pub boss: bool,
-}
-
-#[cfg(debugger)]
-#[derive(Class, Debug)]
-pub struct Encounter {
-    #[rename = "encounterDone"]
-    pub done: bool,
-    #[rename = "bossEncounter"]
-    pub boss: bool,
-
-    #[rename = "fullHealPartyAfterEncounter"]
-    full_heal_after: bool,
-    #[rename = "isUnderwater"]
-    underwater: bool,
-    #[rename = "allEnemiesKilled"]
-    all_enemies_killed: bool,
-    #[rename = "isRunning"]
-    running: bool,
-
-    #[rename = "xpGained"]
-    xp_gain: u32,
-
-    #[rename = "encounterDoneAchievement"]
-    has_achievement: Address64,
-
-    #[rename = "encounterLoot"]
-    loot: Pointer<EncounterLoot>,
-
-    #[rename = "enemyActors"]
-    enemy_actors: Pointer<List<Pointer<EnemyCombatActor>>>,
-
-    #[rename = "enemyTargets"]
-    enemy_targets: Pointer<List<Pointer<EnemyCombatTarget>>>,
-}
-
-#[cfg(debugger)]
-#[derive(Class, Debug)]
-struct EncounterLoot {
-    #[rename = "goldToAward"]
-    gold: u32,
-}
-
-#[cfg(debugger)]
-#[derive(Class, Debug)]
-struct EnemyCombatActor {
-    #[rename = "hideHP"]
-    hide_hp: bool,
-    #[rename = "awardXP"]
-    xp: bool,
-    #[rename = "enemyData"]
-    data: Pointer<EnemyCharacterData>,
-}
-
-#[cfg(debugger)]
-#[derive(Class, Debug)]
-struct EnemyCharacterData {
-    guid: Pointer<CSString>,
-
-    hp: u32,
-    speed: u32,
-    #[rename = "basePhysicalDefense"]
-    base_physical_defense: u32,
-    #[rename = "basePhysicalAttack"]
-    base_physical_attack: u32,
-    #[rename = "baseMagicAttack"]
-    base_magic_attack: u32,
-    #[rename = "baseMagicDefense"]
-    base_magic_defense: u32,
-    #[rename = "damageTypeModifiers"]
-    damage_type_modifiers: Pointer<FloatByEDamageType>,
-    #[rename = "damageTypeModifiersOverride"]
-    damage_type_override: Pointer<FloatByEDamageType>,
-
-    #[rename = "enemyLevel"]
-    level: u32,
-    #[rename = "xpData"]
-    xp: Pointer<XPData>,
-
-    #[rename = "nameLocalizationId"]
-    name_localization_id: loc::LocalizationId,
-}
-
-#[cfg(debugger)]
-#[derive(Class, Debug)]
-struct FloatByEDamageType {
-    dictionary: Pointer<Map<EDamageType, f32>>,
-}
-
-#[cfg(debugger)]
-#[derive(Class, Debug)]
-struct XPData {
-    #[rename = "goldReward"]
-    gold: u32,
-}
-
-#[cfg(debugger)]
-#[derive(Class, Debug)]
-struct EnemyCombatTarget {
-    #[rename = "currentHP"]
-    current_hp: u32,
-}
-
-#[derive(Copy, Clone, Debug, AnyBitPattern)]
-#[repr(C)]
-struct EDamageType {
-    value: u32,
-}
-
-#[allow(unused)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[repr(u32)]
-enum DamageType {
-    None = 0x0000,
-    Any = 0x0001,
-    Sword = 0x0002,
-    Sun = 0x0004,
-    Moon = 0x0008,
-    Eclipse = 0x0010,
-    Poison = 0x0020,
-    Arcane = 0x0040,
-    Stun = 0x0080,
-    Magical = 0x00fc, // Stun | Arcane | Poison | Eclipse | Sun | Moon
-    Blunt = 0x0100,
-}
-
-impl core::ops::BitAnd for DamageType {
-    type Output = bool;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        (self as u32) & (rhs as u32) != 0
     }
 }
 
@@ -801,55 +622,6 @@ mod loc {
             Some((string, strings.language))
         }
     }
-}
-
-binding!(EncounterBinding => Encounter);
-
-#[cfg(debugger)]
-binding!(EncounterLootBinding => EncounterLoot);
-#[cfg(debugger)]
-binding!(EnemyCombatActorBinding => EnemyCombatActor);
-#[cfg(debugger)]
-binding!(EnemyCharacterDataBinding => EnemyCharacterData);
-#[cfg(debugger)]
-binding!(FloatByEDamageTypeBinding => FloatByEDamageType);
-#[cfg(debugger)]
-binding!(XPDataBinding => XPData);
-#[cfg(debugger)]
-binding!(EnemyCombatTargetBinding => EnemyCombatTarget);
-
-impl<'a> Data<'a> {
-    pub async fn new(process: &'a Process) -> Data<'a> {
-        let module = Module::wait_attach(process, Version::V2020).await;
-        let image = module.wait_get_default_image(process).await;
-        log!("Attaching to the game");
-
-        let encounter = binds!(process, &module, &image, (Encounter));
-
-        let combat = CombatManagerBinding::new(process, &module, &image).await;
-
-        log!("Attached to the game");
-
-        Self {
-            process,
-            module,
-            image,
-            combat,
-            encounter,
-            title_screen: LateInit::new(),
-            progression: LateInit::new(),
-            #[cfg(debugger)]
-            combat2: LateInit::new(),
-            #[cfg(debugger)]
-            inventory: LateInit::new(),
-            #[cfg(debugger)]
-            loc: LateInit::new(),
-        }
-    }
-}
-
-impl CombatManagerBinding {
-    singleton!(CombatManager);
 }
 
 #[cfg(debugger)]
@@ -1220,55 +992,365 @@ mod inventory {
     }
 }
 
-#[cfg(debugger)]
 mod combat {
+    #[cfg(debugger)]
     use core::fmt;
 
+    #[cfg(debugger)]
+    use asr::arrayvec::{ArrayString, ArrayVec};
     use asr::{
-        arrayvec::{ArrayString, ArrayVec},
-        Process,
+        game_engine::unity::il2cpp::{Class, Image, Module},
+        Address64, Process,
     };
+    #[cfg(debugger)]
+    use bytemuck::AnyBitPattern;
+    use csharp_mem::Pointer;
+    #[cfg(debugger)]
+    use csharp_mem::{CSString, List, Map};
 
-    use super::DamageType;
+    use super::Singleton;
 
-    impl super::Combat {
-        pub fn resolve(&self, process: &Process, loc: &super::loc::Loc) -> Option<Encounter> {
+    pub struct Combat {
+        manager: Singleton<CombatManagerBinding>,
+        encounter: EncounterBinding,
+        #[cfg(debugger)]
+        loot: EncounterLootBinding,
+        #[cfg(debugger)]
+        actor: EnemyCombatActorBinding,
+        #[cfg(debugger)]
+        char_data: EnemyCharacterDataBinding,
+        #[cfg(debugger)]
+        by_damage: FloatByEDamageTypeBinding,
+        #[cfg(debugger)]
+        xp: XPDataBinding,
+        #[cfg(debugger)]
+        e_target: EnemyCombatTargetBinding,
+    }
+
+    #[cfg(debugger)]
+    impl fmt::Debug for Combat {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("Combat").finish_non_exhaustive()
+        }
+    }
+
+    impl Combat {
+        #[cfg(not(debugger))]
+        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
+            let encounter = binds!(process, module, image, (Encounter,));
+            let manager = CombatManagerBinding::new(process, module, image).await;
+            Self { manager, encounter }
+        }
+
+        #[cfg(debugger)]
+        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
+            let (encounter, loot, actor, char_data, by_damage, xp, e_target) = binds!(
+                process,
+                module,
+                image,
+                (
+                    Encounter,
+                    EncounterLoot,
+                    EnemyCombatActor,
+                    EnemyCharacterData,
+                    FloatByEDamageType,
+                    XPData,
+                    EnemyCombatTarget,
+                )
+            );
+
+            let manager = CombatManagerBinding::new(process, module, image).await;
+            Self {
+                manager,
+                encounter,
+                loot,
+                actor,
+                char_data,
+                by_damage,
+                xp,
+                e_target,
+            }
+        }
+    }
+
+    #[derive(Class)]
+    struct CombatManager {
+        #[rename = "currentEncounter"]
+        encounter: Pointer<Encounter>,
+    }
+
+    impl CombatManagerBinding {
+        singleton!(CombatManager);
+    }
+
+    #[cfg(not(debugger))]
+    #[derive(Class, Debug)]
+    pub struct Encounter {
+        #[rename = "encounterDone"]
+        pub done: bool,
+        #[rename = "bossEncounter"]
+        pub boss: bool,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    pub struct Encounter {
+        #[rename = "encounterDone"]
+        pub done: bool,
+        #[rename = "bossEncounter"]
+        pub boss: bool,
+
+        #[rename = "fullHealPartyAfterEncounter"]
+        full_heal_after: bool,
+        #[rename = "isUnderwater"]
+        underwater: bool,
+        #[rename = "allEnemiesKilled"]
+        all_enemies_killed: bool,
+        #[rename = "isRunning"]
+        running: bool,
+
+        #[rename = "xpGained"]
+        xp_gain: u32,
+
+        #[rename = "encounterDoneAchievement"]
+        has_achievement: Address64,
+
+        #[rename = "encounterLoot"]
+        loot: Pointer<EncounterLoot>,
+
+        #[rename = "enemyActors"]
+        enemy_actors: Pointer<List<Pointer<EnemyCombatActor>>>,
+
+        #[rename = "enemyTargets"]
+        enemy_targets: Pointer<List<Pointer<EnemyCombatTarget>>>,
+    }
+
+    binding!(EncounterBinding => Encounter);
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct EncounterLoot {
+        #[rename = "goldToAward"]
+        gold: u32,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct EnemyCombatActor {
+        #[rename = "hideHP"]
+        hide_hp: bool,
+        #[rename = "awardXP"]
+        xp: bool,
+        #[rename = "enemyData"]
+        data: Pointer<EnemyCharacterData>,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct EnemyCharacterData {
+        guid: Pointer<CSString>,
+
+        hp: u32,
+        speed: u32,
+        #[rename = "basePhysicalDefense"]
+        base_physical_defense: u32,
+        #[rename = "basePhysicalAttack"]
+        base_physical_attack: u32,
+        #[rename = "baseMagicAttack"]
+        base_magic_attack: u32,
+        #[rename = "baseMagicDefense"]
+        base_magic_defense: u32,
+        #[rename = "damageTypeModifiers"]
+        damage_type_modifiers: Pointer<FloatByEDamageType>,
+        #[rename = "damageTypeModifiersOverride"]
+        damage_type_override: Pointer<FloatByEDamageType>,
+
+        #[rename = "enemyLevel"]
+        level: u32,
+        #[rename = "xpData"]
+        xp: Pointer<XPData>,
+
+        #[rename = "nameLocalizationId"]
+        name_localization_id: super::loc::LocalizationId,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct FloatByEDamageType {
+        dictionary: Pointer<Map<EDamageType, f32>>,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct XPData {
+        #[rename = "goldReward"]
+        gold: u32,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct EnemyCombatTarget {
+        #[rename = "currentHP"]
+        current_hp: u32,
+    }
+
+    #[cfg(debugger)]
+    #[derive(Copy, Clone, Debug, AnyBitPattern)]
+    #[repr(C)]
+    struct EDamageType {
+        value: u32,
+    }
+
+    #[cfg(debugger)]
+    #[allow(unused)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[repr(u32)]
+    enum DamageType {
+        None = 0x0000,
+        Any = 0x0001,
+        Sword = 0x0002,
+        Sun = 0x0004,
+        Moon = 0x0008,
+        Eclipse = 0x0010,
+        Poison = 0x0020,
+        Arcane = 0x0040,
+        Stun = 0x0080,
+        Magical = 0x00fc, // Stun | Arcane | Poison | Eclipse | Sun | Moon
+        Blunt = 0x0100,
+    }
+
+    #[cfg(debugger)]
+    impl core::ops::BitAnd for DamageType {
+        type Output = bool;
+
+        fn bitand(self, rhs: Self) -> Self::Output {
+            (self as u32) & (rhs as u32) != 0
+        }
+    }
+
+    #[cfg(debugger)]
+    impl From<EDamageType> for DamageType {
+        fn from(value: EDamageType) -> Self {
+            unsafe { core::mem::transmute(value.value) }
+        }
+    }
+
+    #[cfg(debugger)]
+    binding!(EncounterLootBinding => EncounterLoot);
+    #[cfg(debugger)]
+    binding!(EnemyCombatActorBinding => EnemyCombatActor);
+    #[cfg(debugger)]
+    binding!(EnemyCharacterDataBinding => EnemyCharacterData);
+    #[cfg(debugger)]
+    binding!(FloatByEDamageTypeBinding => FloatByEDamageType);
+    #[cfg(debugger)]
+    binding!(XPDataBinding => XPData);
+    #[cfg(debugger)]
+    binding!(EnemyCombatTargetBinding => EnemyCombatTarget);
+
+    impl Combat {
+        pub fn current_encounter(&self, process: &Process) -> Option<(Address64, Encounter)> {
+            let combat = CombatManagerBinding::resolve(&self.manager, process)?;
+            let encounter = combat.encounter.resolve_with((process, &self.encounter))?;
+            Some((combat.encounter.address_value().into(), encounter))
+        }
+
+        pub fn resolve_encounter(
+            &self,
+            process: &Process,
+            enc: Address64,
+        ) -> Option<(Address64, Encounter)> {
+            let encounter = bytemuck::cast::<_, Pointer<Encounter>>(enc);
+            let encounter = encounter.resolve_with((process, &self.encounter))?;
+            Some((enc, encounter))
+        }
+
+        #[cfg(debugger)]
+        pub fn resolve(&self, process: &Process, loc: &super::loc::Loc) -> Option<BattleEncounter> {
             let process = super::Proc(process);
 
-            let combat = super::CombatManagerBinding::resolve(&self.manager, process.0)?;
+            let combat = CombatManagerBinding::resolve(&self.manager, process.0)?;
             let encounter = combat.encounter.resolve_with((process, &self.encounter))?;
             let loot = encounter.loot.resolve_with((process, &self.loot))?;
 
             let actors = encounter.enemy_actors.resolve(process);
-            let actors = actors
+            let mut enemies = actors
                 .into_iter()
                 .flat_map(|o| {
                     o.iter(process).filter_map(|o| {
                         let actor = o.resolve_with((process, &self.actor))?;
                         let char_data = actor.data.resolve_with((process, &self.char_data))?;
-                        let xp = char_data.xp.resolve_with((process, &self.xp))?;
+
+                        let stats = EnemyStats {
+                            current_hp: 0,
+                            max_hp: char_data.hp,
+                            level: char_data.level,
+                            speed: char_data.speed,
+                            attack: char_data.base_physical_attack,
+                            defense: char_data.base_physical_defense,
+                            magic_attack: char_data.base_magic_attack,
+                            magic_defense: char_data.base_magic_defense,
+                        };
+
+                        let mut mods = EnemyMods {
+                            any: 1.0,
+                            sword: 1.0,
+                            sun: 1.0,
+                            moon: 1.0,
+                            eclipse: 1.0,
+                            poison: 1.0,
+                            arcane: 1.0,
+                            stun: 1.0,
+                            blunt: 1.0,
+                        };
 
                         let damage_type_modifiers = char_data
                             .damage_type_modifiers
                             .resolve_with((process, &self.by_damage));
                         let damage_type_modifiers = damage_type_modifiers
                             .and_then(|o| o.dictionary.resolve(process))
-                            .map(|o| {
-                                o.iter(process)
-                                    .map(|(k, v)| (unsafe { core::mem::transmute(k) }, v))
-                                    .collect()
-                            });
+                            .into_iter()
+                            .flat_map(|o| o.iter(process).map(|(k, v)| (DamageType::from(k), v)));
 
                         let damage_type_override = char_data
                             .damage_type_override
                             .resolve_with((process, &self.by_damage));
                         let damage_type_override = damage_type_override
                             .and_then(|o| o.dictionary.resolve(process))
-                            .map(|o| {
-                                o.iter(process)
-                                    .map(|(k, v)| (unsafe { core::mem::transmute(k) }, v))
-                                    .collect()
-                            });
+                            .into_iter()
+                            .flat_map(|o| o.iter(process).map(|(k, v)| (DamageType::from(k), v)));
+
+                        for (dmg, modifier) in damage_type_modifiers.chain(damage_type_override) {
+                            if dmg & DamageType::Any {
+                                mods.any = modifier;
+                            }
+                            if dmg & DamageType::Sword {
+                                mods.sword = modifier;
+                            }
+                            if dmg & DamageType::Sun {
+                                mods.sun = modifier;
+                            }
+                            if dmg & DamageType::Moon {
+                                mods.moon = modifier;
+                            }
+                            if dmg & DamageType::Eclipse {
+                                mods.eclipse = modifier;
+                            }
+                            if dmg & DamageType::Poison {
+                                mods.poison = modifier;
+                            }
+                            if dmg & DamageType::Arcane {
+                                mods.arcane = modifier;
+                            }
+                            if dmg & DamageType::Stun {
+                                mods.stun = modifier;
+                            }
+                            if dmg & DamageType::Blunt {
+                                mods.blunt = modifier;
+                            }
+                        }
+
+                        let xp = char_data.xp.resolve_with((process, &self.xp))?;
 
                         let e_guid = char_data.guid.resolve(process)?;
                         let id = e_guid.to_string(process);
@@ -1276,45 +1358,32 @@ mod combat {
                         let name = char_data.name_localization_id;
                         let (name, _language) = loc.lookup(process, name)?;
 
-                        Some(EnemyCombatActor {
+                        Some(EnemyInfo {
                             hide_hp: actor.hide_hp,
-                            xp: actor.xp,
-                            data: EnemyCharacterData {
-                                id,
-                                name,
-                                level: char_data.level,
-                                xp,
-                                hp: char_data.hp,
-                                speed: char_data.speed,
-                                base_physical_defense: char_data.base_physical_defense,
-                                base_physical_attack: char_data.base_physical_attack,
-                                base_magic_attack: char_data.base_magic_attack,
-                                base_magic_defense: char_data.base_magic_defense,
-                                damage_type_modifiers,
-                                damage_type_override,
-                            },
+                            gives_xp: actor.xp,
+                            xp,
+                            id,
+                            name,
+                            stats,
+                            mods,
                         })
                     })
                 })
                 .take(6)
-                .collect();
+                .collect::<ArrayVec<_, 6>>();
 
             let targets = encounter.enemy_targets.resolve(process);
-            let targets = targets
+            for (target, enemy) in targets
                 .into_iter()
-                .flat_map(|o| {
-                    o.iter(process).filter_map(|o| {
-                        let e_target = o.resolve_with((process, &self.e_target))?;
+                .flat_map(|o| o.iter(process))
+                .zip(enemies.iter_mut())
+            {
+                if let Some(target) = target.resolve_with((process, &self.e_target)) {
+                    enemy.stats.current_hp = target.current_hp;
+                }
+            }
 
-                        Some(EnemyCombatTarget {
-                            current_hp: e_target.current_hp,
-                        })
-                    })
-                })
-                .take(6)
-                .collect();
-
-            Some(Encounter {
+            Some(BattleEncounter {
                 done: encounter.done,
                 boss: encounter.boss,
                 full_heal_after: encounter.full_heal_after,
@@ -1324,14 +1393,14 @@ mod combat {
                 xp_gain: encounter.xp_gain,
                 has_achievement: !encounter.has_achievement.is_null(),
                 loot,
-                enemy_actors: actors,
-                enemy_targets: targets,
+                enemies,
             })
         }
     }
 
+    #[cfg(debugger)]
     #[derive(Debug)]
-    pub struct Encounter {
+    pub struct BattleEncounter {
         pub done: bool,
         pub boss: bool,
         full_heal_after: bool,
@@ -1340,12 +1409,12 @@ mod combat {
         running: bool,
         xp_gain: u32,
         has_achievement: bool,
-        loot: super::EncounterLoot,
-        enemy_actors: ArrayVec<EnemyCombatActor, 6>,
-        enemy_targets: ArrayVec<EnemyCombatTarget, 6>,
+        loot: EncounterLoot,
+        enemies: ArrayVec<EnemyInfo, 6>,
     }
 
-    impl Encounter {
+    #[cfg(debugger)]
+    impl BattleEncounter {
         pub fn enemies(&self) -> impl Iterator<Item = EnemyEncounter> + '_ {
             Some(EnemyEncounter::General(General {
                 boss: self.boss,
@@ -1359,120 +1428,35 @@ mod combat {
                 gold_gained: self.loot.gold,
             }))
             .into_iter()
-            .chain(
-                self.enemy_actors
-                    .iter()
-                    .zip(self.enemy_targets.iter())
-                    .flat_map(move |(a, t)| {
-                        let mut any_modifier = 1.0;
-                        let mut sword_modifier = 1.0;
-                        let mut sun_modifier = 1.0;
-                        let mut moon_modifier = 1.0;
-                        let mut eclipse_modifier = 1.0;
-                        let mut poison_modifier = 1.0;
-                        let mut arcane_modifier = 1.0;
-                        let mut stun_modifier = 1.0;
-                        let mut blunt_modifier = 1.0;
-                        for (dmg, modifier) in a
-                            .data
-                            .damage_type_modifiers
-                            .iter()
-                            .flatten()
-                            .chain(a.data.damage_type_override.iter().flatten())
-                            .copied()
-                        {
-                            if dmg & DamageType::Any {
-                                any_modifier = modifier;
-                            }
-                            if dmg & DamageType::Sword {
-                                sword_modifier = modifier;
-                            }
-                            if dmg & DamageType::Sun {
-                                sun_modifier = modifier;
-                            }
-                            if dmg & DamageType::Moon {
-                                moon_modifier = modifier;
-                            }
-                            if dmg & DamageType::Eclipse {
-                                eclipse_modifier = modifier;
-                            }
-                            if dmg & DamageType::Poison {
-                                poison_modifier = modifier;
-                            }
-                            if dmg & DamageType::Arcane {
-                                arcane_modifier = modifier;
-                            }
-                            if dmg & DamageType::Stun {
-                                stun_modifier = modifier;
-                            }
-                            if dmg & DamageType::Blunt {
-                                blunt_modifier = modifier;
-                            }
-                        }
-
-                        [
-                            EnemyEncounter::Enemy(Enemy {
-                                id: a.data.id.as_str(),
-                                name: &a.data.name,
-                                hide_hp: a.hide_hp,
-                                award_xp: a.xp,
-                                gold_drop: a.data.xp.gold,
-                            }),
-                            EnemyEncounter::EnemyStats(EnemyStats {
-                                current_hp: t.current_hp,
-                                max_hp: a.data.hp,
-                                level: a.data.level,
-                                speed: a.data.speed,
-                                attack: a.data.base_physical_attack,
-                                defense: a.data.base_physical_defense,
-                                magic_attack: a.data.base_magic_attack,
-                                magic_defense: a.data.base_magic_defense,
-                            }),
-                            EnemyEncounter::EnemyMods(EnemyMods {
-                                any: any_modifier,
-                                sword: sword_modifier,
-                                sun: sun_modifier,
-                                moon: moon_modifier,
-                                eclipse: eclipse_modifier,
-                                poison: poison_modifier,
-                                arcane: arcane_modifier,
-                                stun: stun_modifier,
-                                blunt: blunt_modifier,
-                            }),
-                        ]
+            .chain(self.enemies.iter().flat_map(move |o| {
+                [
+                    EnemyEncounter::Enemy(Enemy {
+                        id: o.id.as_str(),
+                        name: &o.name,
+                        hide_hp: o.hide_hp,
+                        award_xp: o.gives_xp,
+                        gold_drop: o.xp.gold,
                     }),
-            )
+                    EnemyEncounter::EnemyStats(o.stats),
+                    EnemyEncounter::EnemyMods(o.mods),
+                ]
+            }))
         }
     }
 
+    #[cfg(debugger)]
     #[derive(Debug)]
-    struct EnemyCombatActor {
+    struct EnemyInfo {
         hide_hp: bool,
-        xp: bool,
-        data: EnemyCharacterData,
-    }
-
-    #[derive(Debug)]
-    struct EnemyCharacterData {
+        gives_xp: bool,
+        xp: XPData,
         id: ArrayString<36>,
-        level: u32,
-        xp: super::XPData,
-        hp: u32,
-        speed: u32,
-        base_physical_defense: u32,
-        base_physical_attack: u32,
-        base_magic_attack: u32,
-        base_magic_defense: u32,
-        damage_type_modifiers: Option<ArrayVec<(super::DamageType, f32), 11>>,
-        damage_type_override: Option<ArrayVec<(super::DamageType, f32), 11>>,
         name: String,
+        stats: EnemyStats,
+        mods: EnemyMods,
     }
 
-    #[derive(Debug)]
-    struct EnemyCombatTarget {
-        current_hp: u32,
-    }
-
+    #[cfg(debugger)]
     #[derive(Copy, Clone, Debug)]
     pub struct General {
         pub boss: bool,
@@ -1488,6 +1472,7 @@ mod combat {
         pub gold_gained: u32,
     }
 
+    #[cfg(debugger)]
     #[derive(Copy, Clone, Debug)]
     pub struct Enemy<'a> {
         pub id: &'a str,
@@ -1497,6 +1482,7 @@ mod combat {
         pub hide_hp: bool,
     }
 
+    #[cfg(debugger)]
     #[derive(Copy, Clone, Debug)]
     pub struct EnemyStats {
         pub current_hp: u32,
@@ -1509,6 +1495,7 @@ mod combat {
         pub magic_defense: u32,
     }
 
+    #[cfg(debugger)]
     #[derive(Copy, Clone, Debug)]
     pub struct EnemyMods {
         pub any: f32,
@@ -1522,6 +1509,7 @@ mod combat {
         pub stun: f32,
     }
 
+    #[cfg(debugger)]
     pub enum EnemyEncounter<'a> {
         General(General),
         Enemy(Enemy<'a>),
@@ -1529,6 +1517,7 @@ mod combat {
         EnemyMods(EnemyMods),
     }
 
+    #[cfg(debugger)]
     impl fmt::Debug for EnemyEncounter<'_> {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             if f.alternate() {
