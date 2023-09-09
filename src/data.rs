@@ -747,7 +747,9 @@ mod combat {
                         let id = e_guid.to_string(process);
 
                         let name = char_data.name_localization_id;
-                        let (name, _language) = loc.lookup(process, name)?;
+                        let name = loc
+                            .lookup(process, name)
+                            .map_or_else(|| String::new(), |(n, _)| n);
 
                         Some(EnemyInfo {
                             hide_hp: actor.hide_hp,
