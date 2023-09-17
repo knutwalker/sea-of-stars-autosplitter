@@ -777,7 +777,10 @@ mod combat {
                             }
                         }
 
-                        let xp = char_data.xp.resolve_with((process, &self.xp))?;
+                        let gold = char_data
+                            .xp
+                            .resolve_with((process, &self.xp))
+                            .map_or(0, |o| o.gold);
 
                         let e_guid = char_data.guid.resolve(process)?;
                         let id = e_guid.to_string(process);
@@ -790,7 +793,7 @@ mod combat {
                         Some(EnemyInfo {
                             hide_hp: actor.hide_hp,
                             gives_xp: actor.xp,
-                            xp,
+                            gold,
                             id,
                             name,
                             stats,
@@ -864,7 +867,7 @@ mod combat {
                         name: &o.name,
                         hide_hp: o.hide_hp,
                         award_xp: o.gives_xp,
-                        gold_drop: o.xp.gold,
+                        gold_drop: o.gold,
                     }),
                     EnemyEncounter::EnemyStats(o.stats),
                     EnemyEncounter::EnemyMods(o.mods),
@@ -878,7 +881,7 @@ mod combat {
     struct EnemyInfo {
         hide_hp: bool,
         gives_xp: bool,
-        xp: XPData,
+        gold: u32,
         id: ArrayString<36>,
         name: String,
         stats: EnemyStats,
