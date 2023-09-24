@@ -1026,7 +1026,7 @@ mod progress {
     #[cfg(debugger)]
     use ahash::HashMap;
     #[cfg(debugger)]
-    use asr::{arrayvec::ArrayString, time::Duration};
+    use asr::{arrayvec::ArrayString, time::Duration, Address};
     use asr::{
         game_engine::unity::il2cpp::{Class, Image, Module},
         Process,
@@ -1113,6 +1113,10 @@ mod progress {
     }
 
     #[cfg(debugger)]
+    #[derive(Class, Debug)]
+    struct CutsceneManager {}
+
+    #[cfg(debugger)]
     impl ProgressionManagerBinding {
         singleton!(ProgressionManager);
     }
@@ -1121,6 +1125,7 @@ mod progress {
     impl ActivityManagerBinding {
         singleton!(ActivityManager);
     }
+    #[cfg(debugger)]
     impl LevelManagerBinding {
         singleton!(LevelManager);
     }
@@ -1138,6 +1143,8 @@ mod progress {
         progression_manager: Singleton<ProgressionManagerBinding>,
         #[cfg(debugger)]
         activity_manager: Singleton<ActivityManagerBinding>,
+        #[cfg(debugger)]
+        cutscene_manager: Address,
         #[cfg(debugger)]
         all_activities: HashMap<String, ActivityData>,
         #[cfg(debugger)]
@@ -1162,6 +1169,14 @@ mod progress {
                 let progression_manager =
                     ProgressionManagerBinding::new(process, module, image).await;
                 let activity_manager = ActivityManagerBinding::new(process, module, image).await;
+
+                let cutscene_manager = CutsceneManager::bind(process, module, image).await;
+                let cutscene_manager = cutscene_manager
+                    .class()
+                    .wait_get_static_instance(process, module, "instance")
+                    .await;
+
+                log!("found CutsceneManager instance at {}", cutscene_manager);
 
                 let all_activities = ActivityManagerBinding::resolve(&activity_manager, process)
                     .into_iter()
@@ -1203,6 +1218,7 @@ mod progress {
                     level_manager,
                     progression_manager,
                     activity_manager,
+                    cutscene_manager,
                     all_activities,
                     loaded_level_info,
                     all_levels,
@@ -1260,6 +1276,8 @@ mod progress {
                 .get(previous_level.as_str())
                 .map_or_else(|| "".into(), |o| loc.localized(process, o.name).into());
 
+            let is_in_cutscene = process.0.read(self.cutscene_manager + 0x30).ok()?;
+
             Some(CurrentProgress {
                 is_loading: level.is_loading,
                 timestamp: progression.timestamp,
@@ -1272,6 +1290,7 @@ mod progress {
                 previous_level,
                 previous_level_name,
                 number_of_defeated_perma_death_enemies,
+                is_in_cutscene,
             })
         }
 
@@ -1309,6 +1328,8 @@ mod progress {
         pub previous_level_name: Rc<str>,
         #[cfg(debugger)]
         pub number_of_defeated_perma_death_enemies: u32,
+        #[cfg(debugger)]
+        pub is_in_cutscene: bool,
     }
 
     #[cfg(debugger)]

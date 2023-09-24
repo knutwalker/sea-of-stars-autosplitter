@@ -90,6 +90,7 @@ impl Progress {
 struct DebugProgress {
     play_time: Watcher<PlayTime>,
     activity: Watcher<Activity>,
+    in_cutscene: Watcher<bool>,
     current_level: Watcher<Level>,
     previous_level: Watcher<Level>,
     seen_enemies: HashSet<Enemy>,
@@ -101,6 +102,7 @@ impl DebugProgress {
         Self {
             play_time: Watcher::new(),
             activity: Watcher::new(),
+            in_cutscene: Watcher::new(),
             current_level: Watcher::new(),
             previous_level: Watcher::new(),
             seen_enemies: HashSet::new(),
@@ -141,6 +143,13 @@ impl DebugProgress {
                 log!("Current {:?}", level.current);
                 timer::set_variable("level", &level.name);
                 timer::set_variable("level_id", level.id.as_str());
+            }
+
+            let in_cutscene = self.in_cutscene.update_infallible(progress.is_in_cutscene);
+            if in_cutscene.changed_from_to(&false, &true) {
+                log!("Cutscene started");
+            } else if in_cutscene.changed_from_to(&true, &false) {
+                log!("Cutscene stopped");
             }
 
             Some(progress.is_loading)
