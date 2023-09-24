@@ -1,10 +1,7 @@
-#[cfg(debugger)]
-use crate::data::{Activity, Level, PlayTime};
-use crate::data::{Data, GameStart};
+use crate::{data::Data, progress::Progress};
 use asr::{
     future::next_tick,
     timer::{self, TimerState},
-    watcher::Watcher,
     Process,
 };
 
@@ -50,6 +47,7 @@ macro_rules! dbg {
 }
 
 mod data;
+mod progress;
 
 asr::async_main!(stable);
 
@@ -69,7 +67,11 @@ async fn main() {
                 loop {
                     #[cfg(debugger)]
                     for item in data.check_for_new_key_items().await {
-                        log!("picked up a new key item: {item}");
+                        log!("picked up a new key item: {} ({})", item.name, item.id);
+                    }
+                    #[cfg(debugger)]
+                    for item in data.check_for_lost_key_items().await {
+                        log!("lost a key item: {} ({})", item.name, item.id);
                     }
 
                     match timer::state() {
@@ -111,125 +113,6 @@ enum Action {
     Split,
     Pause,
     Resume,
-}
-
-struct Progress {
-    loading: Watcher<bool>,
-    in_encounter: bool,
-    #[cfg(debugger)]
-    play_time: Watcher<PlayTime>,
-    #[cfg(debugger)]
-    activity: Watcher<Activity>,
-    #[cfg(debugger)]
-    current_level: Watcher<Level>,
-    #[cfg(debugger)]
-    previous_level: Watcher<Level>,
-}
-
-impl Progress {
-    pub fn new() -> Self {
-        Self {
-            loading: Watcher::new(),
-            in_encounter: false,
-            #[cfg(debugger)]
-            play_time: Watcher::new(),
-            #[cfg(debugger)]
-            activity: Watcher::new(),
-            #[cfg(debugger)]
-            current_level: Watcher::new(),
-            #[cfg(debugger)]
-            previous_level: Watcher::new(),
-        }
-    }
-
-    pub fn start(&mut self, data: &mut Data<'_>) -> Option<Action> {
-        matches!(data.game_start(), GameStart::JustStarted).then_some(Action::Start)
-    }
-
-    pub async fn act(&mut self, data: &mut Data<'_>) -> Option<Action> {
-        let loading = if let Some(progress) = data.progress().await {
-            #[cfg(debugger)]
-            {
-                let play_time = self.play_time.update_infallible(progress.play_time());
-                if play_time.changed() {
-                    log!(
-                        "this session={}, total={}",
-                        play_time.current.session,
-                        play_time.current.total
-                    );
-                    timer::set_game_time(play_time.current.total);
-                }
-
-                let first = self.activity.pair.is_none();
-                let activity = self.activity.update_infallible(progress.activity());
-                if first || activity.changed() {
-                    log!("{:?}", activity.current);
-                    timer::set_variable("activity", &activity.current.name);
-                    timer::set_variable("activity_id", activity.current.id.as_str());
-                }
-
-                let first = self.previous_level.pair.is_none();
-                let level = self.previous_level.update_infallible(progress.prev_level());
-                if first || level.changed() {
-                    log!("Previous {:?}", level.current);
-                }
-
-                let first = self.current_level.pair.is_none();
-                let level = self
-                    .current_level
-                    .update_infallible(progress.current_level());
-                if first || level.changed() {
-                    log!("Current {:?}", level.current);
-                    timer::set_variable("level", &level.name);
-                    timer::set_variable("level_id", level.id.as_str());
-                }
-            }
-
-            Some(progress.is_loading)
-        } else {
-            None
-        };
-
-        match self.loading.update(loading) {
-            Some(l) if l.changed_to(&false) => Some(Action::Resume),
-            Some(l) if l.changed_to(&true) => Some(Action::Pause),
-            _ => self
-                .check_encounter(data)
-                .await
-                .and_then(|o| o.then_some(Action::Split)),
-        }
-    }
-
-    async fn check_encounter(&mut self, data: &mut Data<'_>) -> Option<bool> {
-        if self.in_encounter {
-            match data.encounter().await {
-                Some(enc) if enc.done => {
-                    #[cfg(debugger)]
-                    data.dump_current_encounter().await;
-                    self.in_encounter = false;
-                    return Some(enc.boss);
-                }
-                Some(_) =>
-                {
-                    #[cfg(debugger)]
-                    data.dump_current_hp_levels().await
-                }
-                None => {
-                    self.in_encounter = false;
-                }
-            }
-        } else {
-            match data.encounter().await {
-                Some(enc) if !enc.done => {
-                    #[cfg(debugger)]
-                    data.dump_current_encounter().await;
-                    self.in_encounter = true;
-                }
-                _ => {}
-            }
-        }
-        Some(false)
-    }
 }
 
 impl Settings {

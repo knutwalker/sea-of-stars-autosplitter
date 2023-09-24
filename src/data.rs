@@ -4,11 +4,9 @@ use core::{
     task::{Context, Poll},
 };
 
-#[cfg(debugger)]
-use asr::arrayvec::ArrayString;
 use asr::{
     game_engine::unity::il2cpp::{Image, Module, Version},
-    Address, Address64, Process,
+    Address, Process,
 };
 use bytemuck::AnyBitPattern;
 use csharp_mem::MemReader;
@@ -19,7 +17,11 @@ use self::{
     title_screen::TitleScreen,
 };
 #[cfg(debugger)]
-use self::{inventory::Inventory, loc::Loc};
+pub use self::{
+    combat::{Enemy, EnemyEncounter, EnemyMods, EnemyStats, General},
+    inventory::{Inventory, NamedKeyItem},
+    loc::Loc,
+};
 
 pub use self::progress::CurrentProgress;
 #[cfg(debugger)]
@@ -79,65 +81,14 @@ impl Data<'_> {
         combat.current_encounter(self.process)
     }
 
-    #[cfg(debugger)]
-    pub async fn dump_current_encounter(&mut self) {
-        if let Some(enc) = self.deep_resolve_encounter().await {
-            enc.enemies().for_each(|e| {
-                log!("{e:?}");
-            });
-        }
-    }
-
-    #[cfg(debugger)]
-    pub async fn dump_current_hp_levels(&mut self) {
-        const KEYS: [(&str, &str, &str); 6] = [
-            ("enemy_1", "enemy_1_id", "enemy_1_hp"),
-            ("enemy_2", "enemy_2_id", "enemy_2_hp"),
-            ("enemy_3", "enemy_3_id", "enemy_3_hp"),
-            ("enemy_4", "enemy_4_id", "enemy_4_hp"),
-            ("enemy_5", "enemy_5_id", "enemy_5_hp"),
-            ("enemy_6", "enemy_6_id", "enemy_6_hp"),
-        ];
-
-        #[derive(Copy, Clone, Debug, Default)]
-        struct Data<'a> {
-            id: &'a str,
-            name: &'a str,
-            hp: u32,
-        }
-
-        if let Some(enc) = self.deep_resolve_encounter().await {
-            for (e, (name_key, id_key, hp_key)) in enc
-                .enemies()
-                .scan(Data::default(), |acc, e| {
-                    Some(match e {
-                        combat::EnemyEncounter::Enemy(e) => {
-                            acc.id = e.id;
-                            acc.name = e.name;
-                            None
-                        }
-                        combat::EnemyEncounter::EnemyStats(e) => {
-                            acc.hp = e.current_hp;
-                            Some(core::mem::take(acc))
-                        }
-                        _ => None,
-                    })
-                })
-                .filter_map(|o| o)
-                .map(Some)
-                .chain(core::iter::repeat(None))
-                .zip(KEYS)
-            {
-                let name = e.map_or("", |o| o.name);
-                let id = e.map_or("", |o| o.id);
-                let hp = e.map_or(0, |o| o.hp);
-
-                asr::timer::set_variable(name_key, name);
-                asr::timer::set_variable(id_key, id);
-                asr::timer::set_variable_int(hp_key, hp);
-            }
-        }
-    }
+    // #[cfg(debugger)]
+    // pub async fn dump_current_encounter(&mut self) {
+    //     if let Some(enc) = self.deep_resolve_encounter().await {
+    //         enc.enemies().for_each(|e| {
+    //             log!("{e:?}");
+    //         });
+    //     }
+    // }
 
     #[cfg(debugger)]
     pub async fn deep_resolve_encounter(&mut self) -> Option<combat::BattleEncounter> {
@@ -156,12 +107,49 @@ impl Data<'_> {
     }
 
     #[cfg(debugger)]
-    pub async fn check_for_new_key_items(&mut self) -> impl Iterator<Item = ArrayString<32>> + '_ {
-        self.inventory
-            .try_get(self.process, &self.module, &self.image, Inventory::new)
-            .await
-            .into_iter()
-            .flat_map(|o| o.refresh(self.process, &self.module))
+    pub async fn check_for_new_key_items<'a>(
+        &'a mut self,
+    ) -> impl Iterator<Item = &'a NamedKeyItem> + 'a {
+        (|| async move {
+            let inventory = self
+                .inventory
+                .try_get(self.process, &self.module, &self.image, Inventory::new)
+                .await?;
+
+            let loc = self
+                .loc
+                .try_get(self.process, &self.module, &self.image, Loc::new)
+                .await?
+                .as_ref()?;
+
+            Some(inventory.check_new(self.process, &self.module, loc))
+        })()
+        .await
+        .into_iter()
+        .flatten()
+    }
+
+    #[cfg(debugger)]
+    pub async fn check_for_lost_key_items<'a>(
+        &'a mut self,
+    ) -> impl Iterator<Item = NamedKeyItem> + 'a {
+        (|| async move {
+            let inventory = self
+                .inventory
+                .try_get(self.process, &self.module, &self.image, Inventory::new)
+                .await?;
+
+            let loc = self
+                .loc
+                .try_get(self.process, &self.module, &self.image, Loc::new)
+                .await?
+                .as_ref()?;
+
+            Some(inventory.check_lost(self.process, &self.module, loc))
+        })()
+        .await
+        .into_iter()
+        .flatten()
     }
 }
 
@@ -308,7 +296,7 @@ struct Proc<'a>(&'a Process);
 
 impl<'a> MemReader for Proc<'a> {
     fn read<T: AnyBitPattern>(&self, addr: u64) -> Option<T> {
-        self.0.read(Address64::from(addr)).ok()
+        self.0.read(asr::Address64::from(addr)).ok()
     }
 }
 
@@ -429,10 +417,13 @@ mod combat {
     use core::fmt;
 
     #[cfg(debugger)]
-    use asr::arrayvec::{ArrayString, ArrayVec};
+    use asr::{
+        arrayvec::{ArrayString, ArrayVec},
+        Address64,
+    };
     use asr::{
         game_engine::unity::il2cpp::{Class, Image, Module},
-        Address64, Process,
+        Process,
     };
     #[cfg(debugger)]
     use bytemuck::AnyBitPattern;
@@ -786,9 +777,7 @@ mod combat {
                         let id = e_guid.to_string(process);
 
                         let name = char_data.name_localization_id;
-                        let name = loc
-                            .lookup(process, name)
-                            .map_or_else(String::new, |(n, _)| n);
+                        let name = loc.localized(process, name);
 
                         Some(EnemyInfo {
                             hide_hp: actor.hide_hp,
@@ -993,7 +982,7 @@ mod combat {
                     }) => {
                         write!(
                             f,
-                            "|--stats: hp={}/{} level={} speed={} A/MA={}/{}, D/MD={}/{}",
+                            "|--stats: hp={}/{} level={} speed={} A/MA={}/{} D/MD={}/{}",
                             current_hp,
                             max_hp,
                             level,
@@ -1019,7 +1008,7 @@ mod combat {
                             f,
                             concat!(
                                 "|--mods: any={} sword={} blunt={} sun={} ",
-                                "moon={} poison={}, arcane={} eclipse={} stun={}"
+                                "moon={} poison={} arcane={} eclipse={} stun={}"
                             ),
                             any, sword, blunt, sun, moon, poison, arcane, eclipse, stun
                         )
@@ -1249,11 +1238,7 @@ mod progress {
             let activity_name = self
                 .all_activities
                 .get(main_activity.as_str())
-                .and_then(|o| {
-                    let (activity_name, _) = loc.lookup(process, o.name)?;
-                    Some(activity_name.into())
-                })
-                .unwrap_or_else(|| "".into());
+                .map_or_else(|| "".into(), |o| loc.localized(process, o.name).into());
 
             let current_level = level
                 .current_level
@@ -1263,11 +1248,7 @@ mod progress {
             let current_level_name = self
                 .all_levels
                 .get(current_level.as_str())
-                .and_then(|o| {
-                    let (level_name, _) = loc.lookup(process, o.name)?;
-                    Some(level_name.into())
-                })
-                .unwrap_or_else(|| "".into());
+                .map_or_else(|| "".into(), |o| loc.localized(process, o.name).into());
 
             let previous_level = level
                 .previous_level_info
@@ -1277,11 +1258,7 @@ mod progress {
             let previous_level_name = self
                 .all_levels
                 .get(previous_level.as_str())
-                .and_then(|o| {
-                    let (level_name, _) = loc.lookup(process, o.name)?;
-                    Some(level_name.into())
-                })
-                .unwrap_or_else(|| "".into());
+                .map_or_else(|| "".into(), |o| loc.localized(process, o.name).into());
 
             Some(CurrentProgress {
                 is_loading: level.is_loading,
@@ -1618,7 +1595,24 @@ mod loc {
     impl Loc {
         pub async fn new(process: &Process, module: &Module, _image: &Image) -> Option<Self> {
             let loc = Localization::new(process, module).await;
-            loc.resolve(process)
+            match loc.resolve(process) {
+                Some(loc) => {
+                    // loc.dump(process);
+                    Some(loc)
+                }
+                None => None,
+            }
+        }
+
+        pub fn localized<R: MemReader + Copy>(&self, process: R, id: LocalizationId) -> String {
+            self.lookup(process, id).map_or_else(
+                || {
+                    id.loc_id
+                        .resolve(process)
+                        .map_or_else(String::new, |o| o.to_std_string(process))
+                },
+                |(n, _)| n,
+            )
         }
 
         pub fn lookup<R: MemReader + Copy>(
@@ -1647,12 +1641,45 @@ mod loc {
 
             Some((string, strings.language))
         }
+
+        #[allow(unused)]
+        fn dump(&self, process: &Process) {
+            let categories = self
+                .categories
+                .iter()
+                .map(|(k, v)| {
+                    let v = v
+                        .index
+                        .iter()
+                        .map(|(k, v)| (*v, k.clone()))
+                        .collect::<HashMap<_, _>>();
+                    (k.clone(), v)
+                })
+                .collect::<HashMap<_, _>>();
+
+            let process = super::Proc(process);
+
+            for (k, v) in self.strings.iter() {
+                log!("--- {k} ---");
+                log!("id, name");
+                if let Some(cat) = categories.get(k) {
+                    for (idx, name) in v.strings.iter(process).enumerate() {
+                        let name = name
+                            .resolve(process)
+                            .map(|o| o.to_std_string(process))
+                            .unwrap_or_default();
+                        let id = cat.get(&idx).map(|o| &**o).unwrap_or_default();
+                        log!("{id}, {name}");
+                    }
+                }
+            }
+        }
     }
 }
 
 #[cfg(debugger)]
 mod inventory {
-    use ahash::{HashSet, HashSetExt};
+    use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
     use asr::{
         game_engine::unity::il2cpp::{Class, Image, Module},
         string::ArrayString,
@@ -1663,7 +1690,10 @@ mod inventory {
 
     use csharp_mem::{CSString, Map, Pointer};
 
-    use super::Singleton;
+    use super::{
+        loc::{Loc, LocalizationId},
+        Singleton,
+    };
 
     #[derive(Class, Debug)]
     struct InventoryManager {
@@ -1676,6 +1706,8 @@ mod inventory {
     #[derive(Class, Debug)]
     struct InventoryItem {
         guid: Pointer<CSString>,
+        #[rename = "nameLocalizationId"]
+        name: LocalizationId,
     }
 
     #[derive(Class, Debug)]
@@ -1698,12 +1730,18 @@ mod inventory {
     binding!(QuantityByInventoryItemReferenceBinding => QuantityByInventoryItemReference);
     binding!(InventoryItemBinding => InventoryItem);
 
+    #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+    pub struct NamedKeyItem {
+        pub id: ArrayString<32>,
+        pub name: String,
+    }
+
     pub struct Inventory {
         inventory_item: InventoryItemBinding,
         key_item: KeyItemBinding,
         quantity: QuantityByInventoryItemReferenceBinding,
         manager: Singleton<InventoryManagerBinding>,
-        all_key_items: HashSet<ArrayString<32>>,
+        all_key_items: HashMap<ArrayString<32>, NamedKeyItem>,
         number_of_owned_items: Watcher<u32>,
         owned_key_items: HashSet<ArrayString<32>>,
     }
@@ -1723,21 +1761,32 @@ mod inventory {
                 quantity,
                 manager,
                 number_of_owned_items: Watcher::new(),
-                all_key_items: HashSet::new(),
+                all_key_items: HashMap::new(),
                 owned_key_items: HashSet::new(),
             }
         }
 
-        pub fn refresh<'a>(
+        pub fn check_new<'a>(
             &'a mut self,
             process: &'a Process,
             module: &'a Module,
-        ) -> impl Iterator<Item = ArrayString<32>> + '_ {
-            self.cache_available_items(process, module);
+            loc: &'a Loc,
+        ) -> impl Iterator<Item = &'a NamedKeyItem> + 'a {
+            self.cache_available_items(process, module, loc);
             self.new_owned_key_items(process)
         }
 
-        pub fn cache_available_items(&mut self, process: &Process, module: &Module) -> bool {
+        pub fn check_lost<'a>(
+            &'a mut self,
+            process: &'a Process,
+            module: &'a Module,
+            loc: &'a Loc,
+        ) -> impl Iterator<Item = NamedKeyItem> + 'a {
+            self.cache_available_items(process, module, loc);
+            self.lost_owned_key_items(process)
+        }
+
+        fn cache_available_items(&mut self, process: &Process, module: &Module, loc: &Loc) -> bool {
             if !self.all_key_items.is_empty() {
                 return false;
             }
@@ -1756,9 +1805,10 @@ mod inventory {
 
                     if is_key_item {
                         let item = v.resolve_with((process, &self.inventory_item))?;
-                        let item = item.guid.resolve(process)?;
-                        let item = item.to_string(process);
-                        self.all_key_items.insert(item);
+                        let id = item.guid.resolve(process)?.to_string(process);
+                        let name = loc.localized(process, item.name);
+                        let item = NamedKeyItem { id, name };
+                        self.all_key_items.insert(id, item);
                     }
                 }
 
@@ -1768,10 +1818,10 @@ mod inventory {
             !self.all_key_items.is_empty()
         }
 
-        pub fn new_owned_key_items<'a>(
+        fn new_owned_key_items<'a>(
             &'a mut self,
             process: &'a Process,
-        ) -> impl Iterator<Item = ArrayString<32>> + 'a {
+        ) -> impl Iterator<Item = &'a NamedKeyItem> + 'a {
             Some(&self.all_key_items)
                 .and_then(|key_items| {
                     let process = super::Proc(process);
@@ -1783,19 +1833,55 @@ mod inventory {
 
                     let amount = owned.size();
                     let owned_items = &mut self.owned_key_items;
-                    self.number_of_owned_items
-                        .update_infallible(amount)
-                        .changed()
-                        .then(move || {
-                            owned.iter(process).filter_map(move |(item, _amount)| {
-                                let item = item.guid.resolve(process)?;
-                                let item = item.to_string(process);
-                                (key_items.contains(&item) && owned_items.insert(item))
-                                    .then_some(item)
-                            })
+
+                    let first = self.number_of_owned_items.pair.is_none();
+                    let now_owned = self.number_of_owned_items.update_infallible(amount);
+
+                    (first || now_owned.changed()).then(move || {
+                        owned.iter(process).filter_map(move |(item, _amount)| {
+                            let item = item.guid.resolve(process)?;
+                            let item = item.to_string(process);
+                            key_items
+                                .get(&item)
+                                .and_then(|v| owned_items.insert(item).then_some(v))
                         })
+                    })
                 })
                 .into_iter()
+                .flatten()
+        }
+
+        fn lost_owned_key_items<'a>(
+            &'a mut self,
+            process: &'a Process,
+        ) -> impl Iterator<Item = NamedKeyItem> + 'a {
+            Some(&mut self.all_key_items)
+                .and_then(|key_items| {
+                    let process = super::Proc(process);
+                    let manager = InventoryManagerBinding::resolve(&self.manager, process.0)?;
+                    let owned = manager
+                        .owned_items
+                        .resolve_with((process, &self.quantity))?;
+                    let owned = owned.dictionary.resolve(process)?;
+
+                    let amount = owned.size();
+                    let owned_items = &mut self.owned_key_items;
+
+                    let first = self.number_of_owned_items.pair.is_none();
+                    let now_owned = self.number_of_owned_items.update_infallible(amount);
+
+                    (first || now_owned.changed()).then(move || {
+                        let mut prev_owned = owned_items.clone();
+                        for (item, _amount) in owned.iter(process) {
+                            let item = item.guid.resolve(process)?;
+                            let item = item.to_string(process);
+                            prev_owned.remove(&item);
+                        }
+                        Some(prev_owned.into_iter().filter_map(|o| key_items.remove(&o)))
+                    })
+                })
+                .into_iter()
+                .flatten()
                 .flatten()
         }
     }
