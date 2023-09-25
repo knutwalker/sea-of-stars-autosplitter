@@ -14,7 +14,14 @@ The latest version of the auto splitter can be downloaded from:
     https://github.com/knutwalker/sea-of-stars-autosplitter/releases/download/latest/sea_of_stars_autosplitter.wasm
 
 
-Add the file as an 'Auto Splitting Runtime' component.
+## Usage
+
+Activate the Autosplitter from LiveSplit when creating splits for Sea of Stars.
+
+**Alternatively** add the attached file as an 'Auto Splitting Runtime' component.
+
+**Important Note** Use only one of these methods. Using both at the same time will run two autosplitters and will result in issues such as double splits or sudden crashes.
+
 
 ## Load Remover
 
@@ -27,7 +34,7 @@ The Autosplitter starts when a character is selected and splits on every boss.
 This can be changed in the settings.
 
 
-## Compilation
+## Build from source
 
 This auto splitter is written in Rust. In order to compile it, you need to
 install the Rust compiler: [Install Rust](https://www.rust-lang.org/tools/install).
