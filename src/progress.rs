@@ -168,7 +168,7 @@ impl DebugProgress {
                         EnemyEncounter::General(encounter) => {
                             enc.boss = encounter.boss;
                             enc.achievement = encounter.has_achievement;
-                            nmy.encounter = enc.clone();
+                            nmy.encounter = enc;
                         }
                         EnemyEncounter::Enemy(enemy) => {
                             nmy.id = enemy.id.to_owned();
@@ -187,6 +187,7 @@ impl DebugProgress {
                                 .trim_start_matches("|--mods: ")
                                 .to_owned();
                             let enemy = std::mem::take(&mut nmy);
+                            nmy.encounter = enc;
                             if !self.seen_enemies.contains(&enemy) {
                                 log!("{:?}", enemy);
                                 self.seen_enemies.insert(enemy);
