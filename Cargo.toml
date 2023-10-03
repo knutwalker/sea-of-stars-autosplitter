@@ -11,7 +11,8 @@ ahash = { version = "0.8.3", default-features = false, features = [
     "std",
     "compile-time-rng",
 ] }
-asr = { git = "https://github.com/knutwalker/asr", branch = "class-goodies", features = [
+asr = { path = "../asr", features = [
+# asr = { git = "https://github.com/knutwalker/asr", branch = "class-goodies", features = [
     "alloc",  # Working with allocations.
     "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
     # "flags", # Working with bit flags.
@@ -26,7 +27,8 @@ asr = { git = "https://github.com/knutwalker/asr", branch = "class-goodies", fea
     # "ps1", # Accessing PlayStation emulators.
 ] }
 bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
-csharp-mem = { git = "https://github.com/knutwalker/csharp-mem", features = [
+csharp-mem = { path = "../csharp-mem", features = [
+# csharp-mem = { git = "https://github.com/knutwalker/csharp-mem", features = [
     "alloc",
 ] }
 pin-project-lite = "0.2.13"

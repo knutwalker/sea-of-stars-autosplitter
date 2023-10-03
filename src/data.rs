@@ -1,155 +1,487 @@
-use core::{
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll},
-};
-
 use asr::{
-    game_engine::unity::il2cpp::{Image, Module, Version},
-    Address, Process,
+    game_engine::unity::il2cpp::{Game, Module, Version},
+    Process,
 };
-use bytemuck::AnyBitPattern;
-use csharp_mem::MemReader;
 
 use self::{
     combat::{Combat, Encounter},
-    progress::Progression,
+    inventory::Inventory,
+    progress::{CurrentProgression, Progression},
     title_screen::TitleScreen,
 };
 #[cfg(debugger)]
 pub use self::{
-    combat::{Enemy, EnemyEncounter, EnemyMods, EnemyStats, General},
-    inventory::{Inventory, NamedKeyItem},
-    loc::Loc,
+    combat::{Enemy as EnemyData, EnemyEncounter, EnemyMods, EnemyStats, General},
+    inventory::NamedKeyItem,
+    loc::{Loc, Localization},
+    progress::{Activity, Level as LevelData, PlayTime},
 };
 
-pub use self::progress::CurrentProgress;
-#[cfg(debugger)]
-pub use self::progress::{Activity, Level, PlayTime};
-pub use self::title_screen::GameStart;
+pub use self::{
+    combat::CurrentEncounter, inventory::Change, progress::CurrentProgress, title_screen::GameStart,
+};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Enemy {
+    Wyrd,
+    Bossslug,
+    ElderMist,
+    Salamander,
+    Malkomud,
+    Malkomount,
+    ChromaticApparition,
+    Duke,
+    BonePile,
+    FleshPile,
+    Romaya,
+    BottomFlower,
+    TopFlower,
+    BotanicalHorror,
+    BrugavesAlly,
+    ErlynaAlly,
+    DwellerOfWoe,
+    Stormcaller,
+    One,
+    Two,
+    Three,
+    Four,
+    DwellerOfTorment,
+    LeafMonster,
+    Erlina,
+    Brugaves,
+    DwellerOfStrife1,
+    DwellerOfStrife2,
+    Tail,
+    Hydralion,
+    Toadcano,
+    Guardian,
+    Meduso,
+    Casugin,
+    Abstarak,
+    Rachater,
+    Repeater,
+    Catalyst,
+    Tentacle,
+    DwellerOfDread,
+    LeJugg,
+    PhaseReaper,
+    Elysandarelle1,
+    Elysandarelle2,
+}
+
+impl Enemy {
+    fn resolve(mut id: impl Iterator<Item = char>) -> Option<Self> {
+        let mut depth = 0;
+        let mut digits = id.by_ref().inspect(|_| depth += 1);
+
+        macro_rules! eq {
+            ($needle:literal => $res:expr) => {
+                (id.eq(($needle[depth..]).chars())).then_some($res)
+            };
+        }
+
+        macro_rules! next {
+            ($($arm:literal => $branch:expr),+ $(,)?) => {
+                match digits.next()? {
+                    $($arm => $branch),+,
+                    _ => None,
+                }
+            };
+        }
+
+        next! {
+            '0' => next! {
+                '2' => eq!("028beee8dff72234a9ad3d8578f6e588" => Self::Duke),
+                'c' => next! {
+                    '2' => eq!("0c24f27ebab6b854ba75700be2df5b21" => Self::Elysandarelle1),
+                    '8' => eq!("0c831eb6bc1c0c648828b405cb8c0667" => Self::Four),
+                },
+                'e' => eq!("0e5b91e5ad0b2784da76ba6314004370" => Self::Elysandarelle2),
+            },
+            '1' => next! {
+                '8' => eq!("1894c41627be94d408bd64295ab6dd18" => Self::Erlina),
+                '9' => eq!("19255ab0a339bd44a8873944c866afc9" => Self::Repeater),
+                'd' => eq!("1dc70fb2d0f1b374cbecf052b953824b" => Self::ErlynaAlly),
+            },
+            '3' => next! {
+                '0' => eq!("30bd6b9747d75724496a60116d875f96" => Self::BonePile),
+                'b' => eq!("3bbc6ad42918c444c9947d156e7674aa" => Self::BottomFlower),
+            },
+            '5' => next! {
+                '0' => eq!("5044e84c74fc97343ad3c8bcd3c08fdf" => Self::Tail),
+                '4' => eq!("54abc79fbf9dd2f4a8bd19cab8245391" => Self::PhaseReaper),
+                '7' => eq!("5750f181921e1f349b595e8e47760d33" => Self::Bossslug),
+                'c' => eq!("5cdedb65d17f3b24c8b7ad5bcbe1bea6" => Self::Romaya),
+            },
+            '6' => next! {
+                '2' => eq!("621eeda6cacd76740b9b24518c3d211b" => Self::TopFlower),
+                '4' => eq!("64246a3a9059257409ea628466ced26e" => Self::BotanicalHorror),
+            },
+            '7' => next! {
+                '3' => eq!("73c4c0922e5ae274eb759f86702353a8" => Self::Two),
+                '6' => eq!("76c4290aa2a896b4cb405e5a2d29b3a0" => Self::One),
+                '8' => eq!("78457137461e7d345b2287aab380e2e0" => Self::Guardian),
+                'a' => eq!("7a8be6ca5e9b7bd49ac7d2da414442cc" => Self::LeJugg),
+                'e' => eq!("7e2e026eb3354c74685427b26cf9acb8" => Self::Hydralion),
+            },
+            '8' => next! {
+                '1' => next! {
+                    '0' => eq!("810980f005079324fb9fb643243eccee" => Self::Malkomud),
+                    '6' => eq!("816de006c125b9b4eaa7139bac5c6b77" => Self::Toadcano),
+                },
+                'b' => eq!("8beb20a7311444a47b1764ae7ace6658" => Self::Wyrd),
+            },
+            '9' => next! {
+                '4' => eq!("94680e3651254c54ca6030f9461b3ed7" => Self::DwellerOfTorment),
+                '6' => eq!("962aa552d33fc124782b230fce9185ce" => Self::ElderMist),
+            },
+            'a' => next! {
+                '1' => eq!("a1c7a4d91b5c8c54b96c3a159ad3a1b5" => Self::DwellerOfDread),
+                '3' => eq!("a3b51cc4bda782c41a9ada029c202824" => Self::ChromaticApparition),
+                '5' => eq!("a5d39cc10d1848d478b59c892f636e3b" => Self::DwellerOfStrife1),
+            },
+            'b' => next! {
+                '2' => eq!("b2e5237a9dd152643abaf1fb3e3d7206" => Self::Catalyst),
+                '4' => eq!("b4e6c3b0168970144a55f4d41fe344c4" => Self::Stormcaller),
+                'b' => eq!("bb02eb1602e1ec142b85cd6b505ef5b6" => Self::Meduso),
+                'c' => eq!("bcde1eb0ea076f846a0ee20287d88204" => Self::DwellerOfWoe),
+                'd' => eq!("bdff582229a41f3438d4c4faac714255" => Self::Casugin),
+            },
+            'c' => next! {
+                '1' => eq!("c109e23c16e478b4e992161662fa81c0" => Self::Tentacle),
+                '4' => eq!("c4480713abcb0d04f8a21a702987e6e1" => Self::Rachater),
+                '9' => eq!("c99b902697c6f734f9fc64b421c06728" => Self::LeafMonster),
+                'c' => eq!("cc767e360aab54d4ca314a206e32ffee" => Self::Brugaves),
+            },
+            'd' => eq!("d0f2cf59f69f42842ac0703193f39c85" => Self::Salamander),
+            'e' => next! {
+                '7' => eq!("e77c07b22ee83854e8c006101ef5731f" => Self::Three),
+                'b' => eq!("ebf760c7aea1c1d46b18e9db92c5af76" => Self::FleshPile),
+                'c' => eq!("ec0b935c78a26044f89a236921671642" => Self::BrugavesAlly),
+            },
+            'f' => next! {
+                '4' => eq!("f4032b2323bc31d4590cf5197db3c3f1" => Self::Abstarak),
+                'c' => eq!("fc51f181f5f913f4e99195da947b1425" => Self::Malkomount),
+            }
+        }
+    }
+
+    #[allow(unused)]
+    fn id(self) -> &'static str {
+        match self {
+            Self::Wyrd => "8beb20a7311444a47b1764ae7ace6658",
+            Self::Bossslug => "5750f181921e1f349b595e8e47760d33",
+            Self::ElderMist => "962aa552d33fc124782b230fce9185ce",
+            Self::Salamander => "d0f2cf59f69f42842ac0703193f39c85",
+            Self::Malkomud => "810980f005079324fb9fb643243eccee",
+            Self::Malkomount => "fc51f181f5f913f4e99195da947b1425",
+            Self::ChromaticApparition => "a3b51cc4bda782c41a9ada029c202824",
+            Self::Duke => "028beee8dff72234a9ad3d8578f6e588",
+            Self::BonePile => "30bd6b9747d75724496a60116d875f96",
+            Self::FleshPile => "ebf760c7aea1c1d46b18e9db92c5af76",
+            Self::Romaya => "5cdedb65d17f3b24c8b7ad5bcbe1bea6",
+            Self::BottomFlower => "3bbc6ad42918c444c9947d156e7674aa",
+            Self::TopFlower => "621eeda6cacd76740b9b24518c3d211b",
+            Self::BotanicalHorror => "64246a3a9059257409ea628466ced26e",
+            Self::BrugavesAlly => "ec0b935c78a26044f89a236921671642",
+            Self::ErlynaAlly => "1dc70fb2d0f1b374cbecf052b953824b",
+            Self::DwellerOfWoe => "bcde1eb0ea076f846a0ee20287d88204",
+            Self::Stormcaller => "b4e6c3b0168970144a55f4d41fe344c4",
+            Self::One => "76c4290aa2a896b4cb405e5a2d29b3a0",
+            Self::Two => "73c4c0922e5ae274eb759f86702353a8",
+            Self::Three => "e77c07b22ee83854e8c006101ef5731f",
+            Self::Four => "0c831eb6bc1c0c648828b405cb8c0667",
+            Self::DwellerOfTorment => "94680e3651254c54ca6030f9461b3ed7",
+            Self::LeafMonster => "c99b902697c6f734f9fc64b421c06728",
+            Self::Erlina => "1894c41627be94d408bd64295ab6dd18",
+            Self::Brugaves => "cc767e360aab54d4ca314a206e32ffee",
+            Self::DwellerOfStrife1 => "a5d39cc10d1848d478b59c892f636e3b",
+            Self::DwellerOfStrife2 => "a5d39cc10d1848d478b59c892f636e3b",
+            Self::Tail => "5044e84c74fc97343ad3c8bcd3c08fdf",
+            Self::Hydralion => "7e2e026eb3354c74685427b26cf9acb8",
+            Self::Toadcano => "816de006c125b9b4eaa7139bac5c6b77",
+            Self::Guardian => "78457137461e7d345b2287aab380e2e0",
+            Self::Meduso => "bb02eb1602e1ec142b85cd6b505ef5b6",
+            Self::Casugin => "bdff582229a41f3438d4c4faac714255",
+            Self::Abstarak => "f4032b2323bc31d4590cf5197db3c3f1",
+            Self::Rachater => "c4480713abcb0d04f8a21a702987e6e1",
+            Self::Repeater => "19255ab0a339bd44a8873944c866afc9",
+            Self::Catalyst => "b2e5237a9dd152643abaf1fb3e3d7206",
+            Self::Tentacle => "c109e23c16e478b4e992161662fa81c0",
+            Self::DwellerOfDread => "a1c7a4d91b5c8c54b96c3a159ad3a1b5",
+            Self::LeJugg => "7a8be6ca5e9b7bd49ac7d2da414442cc",
+            Self::PhaseReaper => "54abc79fbf9dd2f4a8bd19cab8245391",
+            Self::Elysandarelle1 => "0c24f27ebab6b854ba75700be2df5b21",
+            Self::Elysandarelle2 => "0e5b91e5ad0b2784da76ba6314004370",
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Level {
+    Skyland,
+    ArchivistRoom,
+    BambooCreek,
+    CeruleanExpanse,
+    CoralCascade,
+    CursedWood,
+    Docks,
+    ElderMistTrials,
+    EstristaesLookout,
+    FloodedGraveyard,
+    ForbiddenCavern,
+    GlacialPeak,
+    HomeWorld,
+    LostOnesHamlet,
+    Lucent,
+    MesaHike,
+    Mirth,
+    Mooncradle,
+    Moorland,
+    MountainTrail,
+    Peninsula,
+    BriskRebuilt,
+    BriskDestroyed,
+    BriskOriginal,
+    Repine,
+    SacrosanctSpires,
+    SeraisWorld,
+    SkyGiantsVillage,
+    SkywardShrine,
+    SongShroomMarsh,
+    StormCallerIsland,
+    TitleScreen,
+    Vespertine,
+    WaterTemple,
+    WizardLab,
+    WorldEeater,
+}
+
+impl Level {
+    fn resolve(mut id: impl Iterator<Item = char>) -> Option<Self> {
+        let mut depth = 0;
+        let mut digits = id.by_ref().inspect(|_| depth += 1);
+
+        macro_rules! eq {
+            ($needle:literal => $res:expr) => {
+                (id.eq(($needle[depth..]).chars())).then_some($res)
+            };
+        }
+
+        macro_rules! next {
+            ($($arm:literal => $branch:expr),+ $(,)?) => {
+                match digits.next()? {
+                    $($arm => $branch),+,
+                    _ => None,
+                }
+            };
+        }
+
+        next! {
+            '0' => eq!("02b4d6511eeaf81428fc06320bb08cb8" => Self::WizardLab),
+            '1' => eq!("11810c4630980eb43abf7fecebfd5a6b" => Self::ElderMistTrials),
+            '2' => eq!("266a901e65780e94fba5cd7c25b58957" => Self::Skyland),
+            '3' => next! {
+                '0' => eq!("304315e8f18ddf149a746e9ecb9db201" => Self::Mooncradle),
+                '1' => eq!("3148529996942724aac85141f9d5a42d" => Self::LostOnesHamlet),
+                '6' => eq!("36d8c0b7f6372704b88a40a23c0f44f9" => Self::BriskRebuilt),
+                '9' => eq!("3914dcaa548d2f3488777a5b5339a5c8" => Self::EstristaesLookout),
+                'a' => eq!("3aea0c635edd6d144b8c0deac0bc62d3" => Self::Repine),
+                'c' => eq!("3cd46afe466424b41a5fa858f91aab0d" => Self::MesaHike),
+                'd' => next! {
+                    '1' => eq!("3d1c3e6c6c2511743ac0278f551d299c" => Self::StormCallerIsland),
+                    'a' => eq!("3dab1b3e3a5221c40989f1c68cfcd352" => Self::WorldEeater),
+                },
+            },
+            '4' => next! {
+                '4' => eq!("44a416e48c8d7d345b5e4507eb27e4de" => Self::TitleScreen),
+                '7' => eq!("4776b2f6ccdb0fe4195c6c0d89206875" => Self::HomeWorld),
+                'd' => eq!("4d9b70c53db5b8c49bb5c60c6ef858bd" => Self::ForbiddenCavern),
+            },
+            '6' => next! {
+                '0' => eq!("6089fb6bc29dbfe4a8ef1be0245a27ee" => Self::WaterTemple),
+                '2' => eq!("62d9b9e11ce314a4da0c04eb812e696d" => Self::Lucent),
+                '6' => eq!("66299b28257ea224ca45113c4ff6f45d" => Self::BambooCreek),
+            },
+            '7' => next! {
+                '2' => eq!("72e9f2699f7c8394b93afa1d273ce67a" => Self::MountainTrail),
+                '3' => eq!("737979d8a1b9e6c4a82d7eb776953244" => Self::Docks),
+                '4' => eq!("745f076f7188dfa4d93d4ffed10232ca" => Self::BriskDestroyed),
+                '5' => eq!("75a16b768d23caf4987bfe1515b04c57" => Self::CursedWood),
+                '6' => eq!("763e6cf37dffb6b46a2d842bf01c24fe" => Self::BriskOriginal),
+                '7' => eq!("77a7111e97c4dab449722b724cdc8d3f" => Self::Moorland),
+                'f' => eq!("7f36e70224f47d344a794e3648fe630b" => Self::SongShroomMarsh),
+            },
+            '8' => eq!("87f3c0b8e8e6cb34daf39ec5cfdeae70" => Self::SeraisWorld),
+            '9' => eq!("9ed0e7229b30c6c458f6b8bf1d210e68" => Self::SkyGiantsVillage),
+            'a' => eq!("adc3d53fe3e2f114086b8c0b4db69ded" => Self::SacrosanctSpires),
+            'b' => next! {
+                '3' => eq!("b3d251f726c4a9444b1051ea8509d8e2" => Self::Peninsula),
+                'f' => eq!("bfe9060167f8f0b42ac1c56a554f16a5" => Self::ArchivistRoom),
+            },
+            'c' => eq!("cdda6d8e9433a2e43b5f78d1732db12e" => Self::GlacialPeak),
+            'd' => eq!("dab5e0be1025fa7449bd4b5141b58dad" => Self::CoralCascade),
+            'f' => next! {
+                '1' => next! {
+                    'a' => eq!("f1a3d633f8079654398f8266fc9feffb" => Self::Vespertine),
+                    'f' => eq!("f1f754c32cb8d5c489e1124505587759" => Self::CeruleanExpanse),
+                },
+                '2' => eq!("f25152a99bdd7af4c8e454c8e2089d72" => Self::SkywardShrine),
+                '6' => eq!("f66543e45ee80264085b007f8f59d56a" => Self::FloodedGraveyard),
+                'e' => eq!("fe2cfebc0cf6bc540892964ac8db2274" => Self::Mirth),
+            },
+        }
+    }
+
+    #[allow(unused)]
+    fn id(self) -> &'static str {
+        match self {
+            Self::Skyland => "266a901e65780e94fba5cd7c25b58957",
+            Self::ArchivistRoom => "bfe9060167f8f0b42ac1c56a554f16a5",
+            Self::BambooCreek => "66299b28257ea224ca45113c4ff6f45d",
+            Self::CeruleanExpanse => "f1f754c32cb8d5c489e1124505587759",
+            Self::CoralCascade => "dab5e0be1025fa7449bd4b5141b58dad",
+            Self::CursedWood => "75a16b768d23caf4987bfe1515b04c57",
+            Self::Docks => "737979d8a1b9e6c4a82d7eb776953244",
+            Self::ElderMistTrials => "11810c4630980eb43abf7fecebfd5a6b",
+            Self::EstristaesLookout => "3914dcaa548d2f3488777a5b5339a5c8",
+            Self::FloodedGraveyard => "f66543e45ee80264085b007f8f59d56a",
+            Self::ForbiddenCavern => "4d9b70c53db5b8c49bb5c60c6ef858bd",
+            Self::GlacialPeak => "cdda6d8e9433a2e43b5f78d1732db12e",
+            Self::HomeWorld => "4776b2f6ccdb0fe4195c6c0d89206875",
+            Self::LostOnesHamlet => "3148529996942724aac85141f9d5a42d",
+            Self::Lucent => "62d9b9e11ce314a4da0c04eb812e696d",
+            Self::MesaHike => "3cd46afe466424b41a5fa858f91aab0d",
+            Self::Mirth => "fe2cfebc0cf6bc540892964ac8db2274",
+            Self::Mooncradle => "304315e8f18ddf149a746e9ecb9db201",
+            Self::Moorland => "77a7111e97c4dab449722b724cdc8d3f",
+            Self::MountainTrail => "72e9f2699f7c8394b93afa1d273ce67a",
+            Self::Peninsula => "b3d251f726c4a9444b1051ea8509d8e2",
+            Self::BriskRebuilt => "36d8c0b7f6372704b88a40a23c0f44f9",
+            Self::BriskDestroyed => "745f076f7188dfa4d93d4ffed10232ca",
+            Self::BriskOriginal => "763e6cf37dffb6b46a2d842bf01c24fe",
+            Self::Repine => "3aea0c635edd6d144b8c0deac0bc62d3",
+            Self::SacrosanctSpires => "adc3d53fe3e2f114086b8c0b4db69ded",
+            Self::SeraisWorld => "87f3c0b8e8e6cb34daf39ec5cfdeae70",
+            Self::SkyGiantsVillage => "9ed0e7229b30c6c458f6b8bf1d210e68",
+            Self::SkywardShrine => "f25152a99bdd7af4c8e454c8e2089d72",
+            Self::SongShroomMarsh => "7f36e70224f47d344a794e3648fe630b",
+            Self::StormCallerIsland => "3d1c3e6c6c2511743ac0278f551d299c",
+            Self::TitleScreen => "44a416e48c8d7d345b5e4507eb27e4de",
+            Self::Vespertine => "f1a3d633f8079654398f8266fc9feffb",
+            Self::WaterTemple => "6089fb6bc29dbfe4a8ef1be0245a27ee",
+            Self::WizardLab => "02b4d6511eeaf81428fc06320bb08cb8",
+            Self::WorldEeater => "3dab1b3e3a5221c40989f1c68cfcd352",
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum KeyItem {
+    Graplou,
+    MasterGhostSandwich,
+    Map,
+    Seashell,
+}
+
+impl KeyItem {
+    fn resolve(mut id: impl Iterator<Item = char>) -> Option<Self> {
+        let mut depth = 0;
+        let mut digits = id.by_ref().inspect(|_| depth += 1);
+
+        macro_rules! eq {
+            ($needle:literal => $res:expr) => {
+                (id.eq(($needle[depth..]).chars())).then_some($res)
+            };
+        }
+
+        macro_rules! next {
+            ($($arm:literal => $branch:expr),+ $(,)?) => {
+                match digits.next()? {
+                    $($arm => $branch),+,
+                    _ => None,
+                }
+            };
+        }
+
+        next! {
+            '2' => eq!("2295d1bfeec0f8844b477f95c919c74f" => Self::Seashell),
+            'c' => eq!("c9447122a421a2640b315d36b2562ad2" => Self::Graplou),
+            'e' => eq!("e94e5414de65af34a810b8f89c117b6b" => Self::MasterGhostSandwich),
+            'a' => eq!("aefb6b3d640e4804d85814203c8baa2c " => Self::Map),
+        }
+    }
+
+    #[allow(unused)]
+    fn id(self) -> &'static str {
+        match self {
+            Self::Graplou => "c9447122a421a2640b315d36b2562ad2",
+            Self::MasterGhostSandwich => "e94e5414de65af34a810b8f89c17b6b",
+            Self::Map => "aefb6b3d640e4804d85814203c8baa2c",
+            Self::Seashell => "2295d1bfeec0f8844b477f95c919c74f",
+        }
+    }
+}
 
 pub struct Data<'a> {
-    process: &'a Process,
-    module: Module,
-    image: Image,
+    game: Game<'a>,
     title_screen: TitleScreen,
-    combat: LateInit<Combat>,
-    progression: LateInit<Progression>,
+    combat: Combat,
+    progression: Progression,
+    inventory: Inventory,
     #[cfg(debugger)]
-    loc: LateInit<Option<Loc>>,
-    #[cfg(debugger)]
-    inventory: LateInit<Inventory>,
+    loc: Localization<'a>,
 }
 
 impl Data<'_> {
-    pub fn game_start(&mut self) -> GameStart {
-        self.title_screen
-            .game_start(self.process, &self.module, &self.image)
+    pub fn game_start(&mut self) -> Option<GameStart> {
+        self.title_screen.game_start(&self.game)
     }
 
-    #[cfg(not(debugger))]
-    pub async fn progress(&mut self) -> Option<CurrentProgress> {
-        let progression = self
-            .progression
-            .try_get(self.process, &self.module, &self.image, Progression::new)
-            .await?;
-
-        progression.get_progress(self.process)
+    pub fn current_progression(&mut self) -> Option<CurrentProgression> {
+        self.progression.current_progression(&self.game)
     }
 
-    #[cfg(debugger)]
-    pub async fn progress(&mut self) -> Option<CurrentProgress> {
-        let progression = self
-            .progression
-            .try_get(self.process, &self.module, &self.image, Progression::new)
-            .await?;
-
-        let loc = self
-            .loc
-            .try_get(self.process, &self.module, &self.image, Loc::new)
-            .await?
-            .as_ref()?;
-
-        progression.get_progress(self.process, loc)
+    pub fn encounter(&mut self) -> Option<Encounter> {
+        self.combat.current_encounter(&self.game)
     }
 
-    pub async fn encounter(&mut self) -> Option<Encounter> {
-        let combat = self
-            .combat
-            .try_get(self.process, &self.module, &self.image, Combat::new)
-            .await?;
-        combat.current_encounter(self.process)
+    pub fn current_enemies(&mut self) -> CurrentEncounter {
+        self.combat.current_enemy_encounter(&self.game)
     }
 
-    // #[cfg(debugger)]
-    // pub async fn dump_current_encounter(&mut self) {
-    //     if let Some(enc) = self.deep_resolve_encounter().await {
-    //         enc.enemies().for_each(|e| {
-    //             log!("{e:?}");
-    //         });
-    //     }
-    // }
-
-    #[cfg(debugger)]
-    pub async fn deep_resolve_encounter(&mut self) -> Option<combat::BattleEncounter> {
-        let combat = self
-            .combat
-            .try_get(self.process, &self.module, &self.image, Combat::new)
-            .await?;
-
-        let loc = self
-            .loc
-            .try_get(self.process, &self.module, &self.image, Loc::new)
-            .await?
-            .as_ref()?;
-
-        combat.resolve(self.process, loc)
+    pub fn key_item_changes(&mut self) -> impl Iterator<Item = Change<KeyItem>> + '_ {
+        self.inventory.check_key_items(&self.game)
     }
 
     #[cfg(debugger)]
-    pub async fn check_for_new_key_items<'a>(
-        &'a mut self,
-    ) -> impl Iterator<Item = &'a NamedKeyItem> + 'a {
-        (|| async move {
-            let inventory = self
-                .inventory
-                .try_get(self.process, &self.module, &self.image, Inventory::new)
-                .await?;
-
-            let loc = self
-                .loc
-                .try_get(self.process, &self.module, &self.image, Loc::new)
-                .await?
-                .as_ref()?;
-
-            Some(inventory.check_new(self.process, &self.module, loc))
-        })()
-        .await
-        .into_iter()
-        .flatten()
+    pub fn progress(&mut self) -> Option<CurrentProgress> {
+        let loc = Self::loc(&self.game, &mut self.loc)?;
+        self.progression.get_progress(&self.game, loc)
     }
 
     #[cfg(debugger)]
-    pub async fn check_for_lost_key_items<'a>(
-        &'a mut self,
-    ) -> impl Iterator<Item = NamedKeyItem> + 'a {
-        (|| async move {
-            let inventory = self
-                .inventory
-                .try_get(self.process, &self.module, &self.image, Inventory::new)
-                .await?;
+    pub fn deep_resolve_encounter(&mut self) -> Option<combat::BattleEncounter> {
+        let loc = Self::loc(&self.game, &mut self.loc)?;
+        self.combat.resolve(&self.game, loc)
+    }
 
-            let loc = self
-                .loc
-                .try_get(self.process, &self.module, &self.image, Loc::new)
-                .await?
-                .as_ref()?;
+    #[cfg(debugger)]
+    pub fn check_for_changed_key_items(
+        &mut self,
+    ) -> impl Iterator<Item = Change<&'_ NamedKeyItem>> + '_ {
+        fn inner<'a>(
+            this: &'a mut Data<'_>,
+        ) -> Option<impl Iterator<Item = Change<&'a NamedKeyItem>> + 'a> {
+            let loc = Data::loc(&this.game, &mut this.loc)?;
+            Some(this.inventory.check_new(&this.game, loc))
+        }
+        inner(self).into_iter().flatten()
+    }
 
-            Some(inventory.check_lost(self.process, &self.module, loc))
-        })()
-        .await
-        .into_iter()
-        .flatten()
+    #[cfg(debugger)]
+    fn loc<'a, 'p>(game: &Game<'p>, loc: &'a mut Localization<'p>) -> Option<&'a Loc> {
+        loc.resolve(game.process(), game.module())
     }
 }
 
@@ -158,256 +490,70 @@ impl<'a> Data<'a> {
         let module = Module::wait_attach(process, Version::V2020).await;
         let image = module.wait_get_default_image(process).await;
         log!("Attached to the game");
+        let game = Game::new(process, module, image);
 
         Self {
-            process,
-            module,
-            image,
-            title_screen: TitleScreen::default(),
-            combat: LateInit::new(),
-            progression: LateInit::new(),
+            game,
+            title_screen: TitleScreen::new(),
+            combat: Combat::new(),
+            progression: Progression::new(),
+            inventory: Inventory::new(),
             #[cfg(debugger)]
-            inventory: LateInit::new(),
-            #[cfg(debugger)]
-            loc: LateInit::new(),
+            loc: Localization::new(),
         }
-    }
-}
-
-macro_rules! binds {
-    ($process:expr, $module:expr, $image:expr, ($($cls:ty),+ $(,)?)) => {{
-        let res = (
-            $(<$cls>::bind($process, $module, $image).await),+
-        );
-
-        $({
-            log!(concat!("Created binding for class ", stringify!($cls)));
-        })+
-
-        res
-    }};
-}
-
-macro_rules! singleton {
-    ($cls:ty) => {
-        async fn new(process: &Process, module: &Module, image: &Image) -> Singleton<Self> {
-            let binding = <$cls>::bind(process, module, image).await;
-            let address = binding
-                .class()
-                .wait_get_static_instance(process, module, "instance")
-                .await;
-
-            log!(
-                concat!("found ", stringify!($cls), " instance at {}"),
-                address
-            );
-
-            Singleton { binding, address }
-        }
-
-        fn resolve(this: &Singleton<Self>, process: &Process) -> Option<$cls> {
-            this.binding.read(process, this.address).ok()
-        }
-    };
-}
-
-macro_rules! binding {
-    ($binding:ty => $cls:ty) => {
-        impl<'a> ::csharp_mem::Binding<$cls> for ($crate::data::Proc<'a>, &'a $binding) {
-            fn read(self, addr: u64) -> Option<$cls> {
-                self.1.read(self.0 .0, addr.into()).ok()
-            }
-        }
-
-        impl<'a> ::csharp_mem::Binding<$cls> for (&'a ::asr::Process, &'a $binding) {
-            fn read(self, addr: u64) -> Option<$cls> {
-                self.1.read(self.0, addr.into()).ok()
-            }
-        }
-    };
-}
-
-pin_project_lite::pin_project! {
-    struct UnRetry<F> {
-        #[pin]
-        fut: F
-    }
-}
-
-impl<F: Future> Future for UnRetry<F> {
-    type Output = Option<F::Output>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.project();
-        let res = match this.fut.poll(cx) {
-            Poll::Ready(res) => Some(res),
-            Poll::Pending => None,
-        };
-        Poll::Ready(res)
-    }
-}
-
-impl<F: Future> UnRetry<F> {
-    fn new(fut: F) -> Self {
-        Self { fut }
-    }
-}
-
-struct LateInit<T> {
-    res: Option<T>,
-}
-
-impl<T> LateInit<T> {
-    fn new() -> Self {
-        Self { res: None }
-    }
-
-    async fn try_get<'a, 'b, F, Fut>(
-        &mut self,
-        process: &'a Process,
-        module: &'b Module,
-        image: &'b Image,
-        ctor: F,
-    ) -> Option<&mut T>
-    where
-        F: FnOnce(&'a Process, &'b Module, &'b Image) -> Fut,
-        Fut: Future<Output = T>,
-    {
-        if self.res.is_none() {
-            let fut = ctor(process, module, image);
-            let fut = UnRetry::new(fut);
-            let res = fut.await;
-            if let Some(res) = res {
-                self.res = Some(res);
-            }
-        }
-        self.res.as_mut()
-    }
-}
-
-#[derive(Debug)]
-struct Singleton<T> {
-    binding: T,
-    address: Address,
-}
-
-#[derive(Copy, Clone)]
-struct Proc<'a>(&'a Process);
-
-impl<'a> MemReader for Proc<'a> {
-    fn read<T: AnyBitPattern>(&self, addr: u64) -> Option<T> {
-        self.0.read(asr::Address64::from(addr)).ok()
     }
 }
 
 mod title_screen {
     use asr::{
-        game_engine::unity::il2cpp::{Class, Image, Module},
-        Address, Address64, Process,
+        game_engine::unity::il2cpp::{Class2, Game},
+        Pointer,
     };
 
+    #[derive(Debug, PartialEq, Eq)]
     pub enum GameStart {
         NotStarted,
         JustStarted,
-        AlreadyRunning,
     }
 
-    #[derive(Default)]
     pub struct TitleScreen {
-        title_screen_class: Option<Class>,
-        selection_screen_offset: Option<u32>,
-        title_screen: Option<Address>,
-        char_select_class: Option<Class>,
-        char_select_offset: Option<u32>,
+        manager: TitleSequenceManagerBinding,
+        char_select: CharacterSelectionScreenBinding,
+    }
+
+    #[derive(Class2, Debug)]
+    struct TitleSequenceManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+        #[rename = "characterSelectionScreen"]
+        char_selection_screen: Pointer<CharacterSelectionScreen>,
+    }
+
+    #[derive(Class2, Debug)]
+    struct CharacterSelectionScreen {
+        #[rename = "characterSelected"]
+        char_selected: bool,
     }
 
     impl TitleScreen {
-        pub fn selected(
-            &mut self,
-            process: &Process,
-            module: &Module,
-            image: &Image,
-        ) -> Option<bool> {
-            let title_screen_class = match self.title_screen_class {
-                Some(ref cls) => cls,
-                None => {
-                    let title_screen_class =
-                        image.get_class(process, module, "TitleSequenceManager")?;
-                    self.title_screen_class = Some(title_screen_class);
-                    self.title_screen_class.as_ref().unwrap()
-                }
-            };
-
-            let selection_screen_offset = match self.selection_screen_offset {
-                Some(screen) => screen,
-                None => {
-                    let selection_screen_offset = title_screen_class.get_field(
-                        process,
-                        module,
-                        "characterSelectionScreen",
-                    )?;
-                    self.selection_screen_offset = Some(selection_screen_offset);
-                    self.selection_screen_offset.unwrap()
-                }
-            };
-
-            let title_screen = match self.title_screen {
-                Some(title_screen) => title_screen,
-                None => {
-                    let address =
-                        title_screen_class.get_static_instance(process, module, "instance")?;
-                    log!("found TitleSequenceManager instance at {}", address);
-                    self.title_screen = Some(address);
-                    self.title_screen.unwrap()
-                }
-            };
-
-            let char_select_class = match self.char_select_class {
-                Some(ref cls) => cls,
-                None => {
-                    let char_select_class =
-                        image.get_class(process, module, "CharacterSelectionScreen")?;
-                    self.char_select_class = Some(char_select_class);
-                    self.char_select_class.as_ref().unwrap()
-                }
-            };
-
-            let char_select_offset = match self.char_select_offset {
-                Some(screen) => screen,
-                None => {
-                    let char_select_offset =
-                        char_select_class.get_field(process, module, "characterSelected")?;
-                    log!("Created binding for class CharacterSelectionScreen");
-                    self.char_select_offset = Some(char_select_offset);
-                    self.char_select_offset.unwrap()
-                }
-            };
-
-            let selection_screen: Address64 =
-                process.read(title_screen + selection_screen_offset).ok()?;
-
-            if selection_screen.is_null() {
-                return None;
+        pub fn new() -> Self {
+            Self {
+                manager: TitleSequenceManager::bind(),
+                char_select: CharacterSelectionScreen::bind(),
             }
-
-            let selected = process
-                .read(selection_screen + u64::from(char_select_offset))
-                .ok()?;
-
-            Some(selected)
         }
 
-        pub fn game_start(
-            &mut self,
-            process: &Process,
-            module: &Module,
-            image: &Image,
-        ) -> GameStart {
-            match self.selected(process, module, image) {
-                Some(true) => GameStart::JustStarted,
-                Some(false) => GameStart::NotStarted,
-                None => GameStart::AlreadyRunning,
-            }
+        pub fn game_start(&mut self, game: &Game<'_>) -> Option<GameStart> {
+            let manager = self.manager.read(game)?;
+            let char_select = self
+                .char_select
+                .read_pointer(game, manager.char_selection_screen)?;
+            Some(if char_select.char_selected {
+                GameStart::JustStarted
+            } else {
+                GameStart::NotStarted
+            })
         }
     }
 }
@@ -417,35 +563,25 @@ mod combat {
     use core::fmt;
 
     #[cfg(debugger)]
+    use asr::{arrayvec::ArrayString, Address64};
     use asr::{
-        arrayvec::{ArrayString, ArrayVec},
-        Address64,
-    };
-    use asr::{
-        game_engine::unity::il2cpp::{Class, Image, Module},
-        Process,
+        arrayvec::ArrayVec,
+        game_engine::unity::il2cpp::{Class2, Game},
+        Pointer,
     };
     #[cfg(debugger)]
     use bytemuck::AnyBitPattern;
-    use csharp_mem::Pointer;
     #[cfg(debugger)]
-    use csharp_mem::{CSString, List, Map};
-
-    use super::Singleton;
+    use csharp_mem::Map;
+    use csharp_mem::{CSString, List};
 
     pub struct Combat {
-        manager: Singleton<CombatManagerBinding>,
+        manager: CombatManagerBinding,
         encounter: EncounterBinding,
+        enemy: EnemyCombat,
+
         #[cfg(debugger)]
         loot: EncounterLootBinding,
-        #[cfg(debugger)]
-        actor: EnemyCombatActorBinding,
-        #[cfg(debugger)]
-        char_data: EnemyCharacterDataBinding,
-        #[cfg(debugger)]
-        by_damage: FloatByEDamageTypeBinding,
-        #[cfg(debugger)]
-        xp: XPDataBinding,
         #[cfg(debugger)]
         e_target: EnemyCombatTargetBinding,
     }
@@ -459,64 +595,90 @@ mod combat {
 
     impl Combat {
         #[cfg(not(debugger))]
-        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
-            let encounter = binds!(process, module, image, (Encounter,));
-            let manager = CombatManagerBinding::new(process, module, image).await;
-            Self { manager, encounter }
+        pub fn new() -> Self {
+            Self {
+                manager: CombatManager::bind(),
+                encounter: Encounter::bind(),
+                enemy: EnemyCombat::new(),
+            }
         }
 
         #[cfg(debugger)]
-        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
-            let (encounter, loot, actor, char_data, by_damage, xp, e_target) = binds!(
-                process,
-                module,
-                image,
-                (
-                    Encounter,
-                    EncounterLoot,
-                    EnemyCombatActor,
-                    EnemyCharacterData,
-                    FloatByEDamageType,
-                    XPData,
-                    EnemyCombatTarget,
-                )
-            );
-
-            let manager = CombatManagerBinding::new(process, module, image).await;
+        pub fn new() -> Self {
             Self {
-                manager,
-                encounter,
-                loot,
-                actor,
-                char_data,
-                by_damage,
-                xp,
-                e_target,
+                manager: CombatManager::bind(),
+                encounter: Encounter::bind(),
+                enemy: EnemyCombat::new(),
+                loot: EncounterLoot::bind(),
+                e_target: EnemyCombatTarget::bind(),
             }
         }
     }
 
-    #[derive(Class)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub enum CurrentEncounter {
+        NotInEncounter,
+        InEncounter(ArrayVec<super::Enemy, 6>),
+    }
+
+    #[cfg(not(debugger))]
+    struct EnemyCombat {
+        actor: EnemyCombatActorBinding,
+        char_data: EnemyCharacterDataBinding,
+    }
+
+    #[cfg(not(debugger))]
+    impl EnemyCombat {
+        fn new() -> Self {
+            Self {
+                actor: EnemyCombatActor::bind(),
+                char_data: EnemyCharacterData::bind(),
+            }
+        }
+    }
+
+    #[cfg(debugger)]
+    struct EnemyCombat {
+        actor: EnemyCombatActorBinding,
+        char_data: EnemyCharacterDataBinding,
+        by_damage: FloatByEDamageTypeBinding,
+        xp: XPDataBinding,
+    }
+
+    #[cfg(debugger)]
+    impl EnemyCombat {
+        fn new() -> Self {
+            Self {
+                actor: EnemyCombatActor::bind(),
+                char_data: EnemyCharacterData::bind(),
+                by_damage: FloatByEDamageType::bind(),
+                xp: XPData::bind(),
+            }
+        }
+    }
+
+    #[derive(Class2)]
     struct CombatManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
         #[rename = "currentEncounter"]
         encounter: Pointer<Encounter>,
     }
 
-    impl CombatManagerBinding {
-        singleton!(CombatManager);
-    }
-
     #[cfg(not(debugger))]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     pub struct Encounter {
         #[rename = "encounterDone"]
         pub done: bool,
         #[rename = "bossEncounter"]
         pub boss: bool,
+        #[rename = "enemyActors"]
+        enemy_actors: Pointer<List<Pointer<EnemyCombatActor>>>,
     }
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     pub struct Encounter {
         #[rename = "encounterDone"]
         pub done: bool,
@@ -548,20 +710,22 @@ mod combat {
         enemy_targets: Pointer<List<Pointer<EnemyCombatTarget>>>,
     }
 
-    binding!(EncounterBinding => Encounter);
-
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct EncounterLoot {
         #[rename = "goldToAward"]
         gold: u32,
     }
 
-    #[cfg(debugger)]
-    binding!(EncounterLootBinding => EncounterLoot);
+    #[cfg(not(debugger))]
+    #[derive(Class2, Debug)]
+    struct EnemyCombatActor {
+        #[rename = "enemyData"]
+        data: Pointer<EnemyCharacterData>,
+    }
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct EnemyCombatActor {
         #[rename = "hideHP"]
         hide_hp: bool,
@@ -571,11 +735,14 @@ mod combat {
         data: Pointer<EnemyCharacterData>,
     }
 
-    #[cfg(debugger)]
-    binding!(EnemyCombatActorBinding => EnemyCombatActor);
+    #[cfg(not(debugger))]
+    #[derive(Class2, Debug)]
+    struct EnemyCharacterData {
+        guid: Pointer<CSString>,
+    }
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct EnemyCharacterData {
         guid: Pointer<CSString>,
 
@@ -604,36 +771,24 @@ mod combat {
     }
 
     #[cfg(debugger)]
-    binding!(EnemyCharacterDataBinding => EnemyCharacterData);
-
-    #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct FloatByEDamageType {
         dictionary: Pointer<Map<EDamageType, f32>>,
     }
 
     #[cfg(debugger)]
-    binding!(FloatByEDamageTypeBinding => FloatByEDamageType);
-
-    #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct XPData {
         #[rename = "goldReward"]
         gold: u32,
     }
 
     #[cfg(debugger)]
-    binding!(XPDataBinding => XPData);
-
-    #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct EnemyCombatTarget {
         #[rename = "currentHP"]
         current_hp: u32,
     }
-
-    #[cfg(debugger)]
-    binding!(EnemyCombatTargetBinding => EnemyCombatTarget);
 
     #[cfg(debugger)]
     #[derive(Copy, Clone, Debug, AnyBitPattern)]
@@ -677,129 +832,74 @@ mod combat {
     }
 
     impl Combat {
-        pub fn current_encounter(&self, process: &Process) -> Option<Encounter> {
-            let combat = CombatManagerBinding::resolve(&self.manager, process)?;
-            let encounter = combat.encounter.resolve_with((process, &self.encounter))?;
+        pub fn current_enemy_encounter(&mut self, game: &Game<'_>) -> CurrentEncounter {
+            fn current_enemies(
+                this: &mut Combat,
+                game: &Game<'_>,
+            ) -> Option<ArrayVec<super::Enemy, 6>> {
+                let combat = this.manager.read(game)?;
+                let encounter = this.encounter.read_pointer(game, combat.encounter)?;
+                let actors = encounter.enemy_actors.resolve(game);
+
+                let enemies = match actors {
+                    Some(actors) => actors
+                        .iter(game)
+                        .filter_map(|o| this.enemy.enemy(game, o))
+                        .map(|e| match e {
+                            super::Enemy::DwellerOfStrife1 if !encounter.boss => {
+                                super::Enemy::DwellerOfStrife2
+                            }
+                            e => e,
+                        })
+                        .take(6)
+                        .collect(),
+                    None => ArrayVec::new(),
+                };
+
+                Some(enemies)
+            }
+
+            match current_enemies(self, game) {
+                Some(enemies) => CurrentEncounter::InEncounter(enemies),
+                None => CurrentEncounter::NotInEncounter,
+            }
+        }
+
+        pub fn current_encounter(&mut self, game: &Game<'_>) -> Option<Encounter> {
+            let manager = self.manager.read(game)?;
+            let encounter = self.encounter.read_pointer(game, manager.encounter)?;
             Some(encounter)
         }
 
         #[cfg(debugger)]
-        pub fn resolve(&self, process: &Process, loc: &super::loc::Loc) -> Option<BattleEncounter> {
-            let process = super::Proc(process);
+        pub fn resolve(
+            &mut self,
+            game: &Game<'_>,
+            loc: &super::loc::Loc,
+        ) -> Option<BattleEncounter> {
+            let combat = self.manager.read(game)?;
 
-            let combat = CombatManagerBinding::resolve(&self.manager, process.0)?;
-            let encounter = combat.encounter.resolve_with((process, &self.encounter))?;
-            let loot = encounter.loot.resolve_with((process, &self.loot))?;
+            let encounter = self.encounter.read_pointer(game, combat.encounter)?;
+            let loot = self.loot.read_pointer(game, encounter.loot)?;
 
-            let actors = encounter.enemy_actors.resolve(process);
-            let mut enemies = actors
-                .into_iter()
-                .flat_map(|o| {
-                    o.iter(process).filter_map(|o| {
-                        let actor = o.resolve_with((process, &self.actor))?;
-                        let char_data = actor.data.resolve_with((process, &self.char_data))?;
+            let actors = encounter.enemy_actors.resolve(game);
 
-                        let stats = EnemyStats {
-                            current_hp: 0,
-                            max_hp: char_data.hp,
-                            level: char_data.level,
-                            speed: char_data.speed,
-                            attack: char_data.base_physical_attack,
-                            defense: char_data.base_physical_defense,
-                            magic_attack: char_data.base_magic_attack,
-                            magic_defense: char_data.base_magic_defense,
-                        };
+            let mut enemies = match actors {
+                Some(actors) => actors
+                    .iter(game)
+                    .filter_map(|o| self.enemy.resolve(loc, game, o))
+                    .take(6)
+                    .collect(),
+                None => ArrayVec::new(),
+            };
 
-                        let mut mods = EnemyMods {
-                            any: 1.0,
-                            sword: 1.0,
-                            sun: 1.0,
-                            moon: 1.0,
-                            eclipse: 1.0,
-                            poison: 1.0,
-                            arcane: 1.0,
-                            stun: 1.0,
-                            blunt: 1.0,
-                        };
-
-                        let damage_type_modifiers = char_data
-                            .damage_type_modifiers
-                            .resolve_with((process, &self.by_damage));
-                        let damage_type_modifiers = damage_type_modifiers
-                            .and_then(|o| o.dictionary.resolve(process))
-                            .into_iter()
-                            .flat_map(|o| o.iter(process).map(|(k, v)| (DamageType::from(k), v)));
-
-                        let damage_type_override = char_data
-                            .damage_type_override
-                            .resolve_with((process, &self.by_damage));
-                        let damage_type_override = damage_type_override
-                            .and_then(|o| o.dictionary.resolve(process))
-                            .into_iter()
-                            .flat_map(|o| o.iter(process).map(|(k, v)| (DamageType::from(k), v)));
-
-                        for (dmg, modifier) in damage_type_modifiers.chain(damage_type_override) {
-                            if dmg & DamageType::Any {
-                                mods.any = modifier;
-                            }
-                            if dmg & DamageType::Sword {
-                                mods.sword = modifier;
-                            }
-                            if dmg & DamageType::Sun {
-                                mods.sun = modifier;
-                            }
-                            if dmg & DamageType::Moon {
-                                mods.moon = modifier;
-                            }
-                            if dmg & DamageType::Eclipse {
-                                mods.eclipse = modifier;
-                            }
-                            if dmg & DamageType::Poison {
-                                mods.poison = modifier;
-                            }
-                            if dmg & DamageType::Arcane {
-                                mods.arcane = modifier;
-                            }
-                            if dmg & DamageType::Stun {
-                                mods.stun = modifier;
-                            }
-                            if dmg & DamageType::Blunt {
-                                mods.blunt = modifier;
-                            }
-                        }
-
-                        let gold = char_data
-                            .xp
-                            .resolve_with((process, &self.xp))
-                            .map_or(0, |o| o.gold);
-
-                        let e_guid = char_data.guid.resolve(process)?;
-                        let id = e_guid.to_string(process);
-
-                        let name = char_data.name_localization_id;
-                        let name = loc.localized(process, name);
-
-                        Some(EnemyInfo {
-                            hide_hp: actor.hide_hp,
-                            gives_xp: actor.xp,
-                            gold,
-                            id,
-                            name,
-                            stats,
-                            mods,
-                        })
-                    })
-                })
-                .take(6)
-                .collect::<ArrayVec<_, 6>>();
-
-            let targets = encounter.enemy_targets.resolve(process);
+            let targets = encounter.enemy_targets.resolve(game);
             for (target, enemy) in targets
                 .into_iter()
-                .flat_map(|o| o.iter(process))
+                .flat_map(|o| o.iter(game))
                 .zip(enemies.iter_mut())
             {
-                if let Some(target) = target.resolve_with((process, &self.e_target)) {
+                if let Some(target) = self.e_target.read_pointer(game, target) {
                     enemy.stats.current_hp = target.current_hp;
                 }
             }
@@ -815,6 +915,127 @@ mod combat {
                 has_achievement: !encounter.has_achievement.is_null(),
                 loot,
                 enemies,
+            })
+        }
+    }
+
+    impl EnemyCombat {
+        fn enemy(
+            &mut self,
+            game: &Game<'_>,
+            eca: Pointer<EnemyCombatActor>,
+        ) -> Option<super::Enemy> {
+            let actor = self.actor.read_pointer(game, eca)?;
+            let char_data = self.char_data.read_pointer(game, actor.data)?;
+            let e_guid = char_data.guid.resolve(game)?;
+            let enemy = super::Enemy::resolve(e_guid.chars(game));
+
+            enemy
+        }
+
+        #[cfg(debugger)]
+        fn resolve(
+            &mut self,
+            loc: &super::loc::Loc,
+            game: &Game<'_>,
+            eca: Pointer<EnemyCombatActor>,
+        ) -> Option<EnemyInfo> {
+            let actor = self.actor.read_pointer(game, eca)?;
+            let char_data = self.char_data.read_pointer(game, actor.data)?;
+
+            let stats = EnemyStats {
+                current_hp: 0,
+                max_hp: char_data.hp,
+                level: char_data.level,
+                speed: char_data.speed,
+                attack: char_data.base_physical_attack,
+                defense: char_data.base_physical_defense,
+                magic_attack: char_data.base_magic_attack,
+                magic_defense: char_data.base_magic_defense,
+            };
+
+            let mut mods = EnemyMods {
+                any: 1.0,
+                sword: 1.0,
+                sun: 1.0,
+                moon: 1.0,
+                eclipse: 1.0,
+                poison: 1.0,
+                arcane: 1.0,
+                stun: 1.0,
+                blunt: 1.0,
+            };
+
+            let damage_type_modifiers = self
+                .by_damage
+                .read_pointer(game, char_data.damage_type_modifiers);
+
+            let damage_type_modifiers = damage_type_modifiers
+                .and_then(|o| o.dictionary.resolve(game))
+                .into_iter()
+                .flat_map(|o| o.iter(game).map(|(k, v)| (DamageType::from(k), v)));
+
+            let damage_type_override = self
+                .by_damage
+                .read_pointer(game, char_data.damage_type_override);
+            let damage_type_override = damage_type_override
+                .and_then(|o| o.dictionary.resolve(game))
+                .into_iter()
+                .flat_map(|o| o.iter(game).map(|(k, v)| (DamageType::from(k), v)));
+
+            for (dmg, modifier) in damage_type_modifiers.chain(damage_type_override) {
+                if dmg & DamageType::Any {
+                    mods.any = modifier;
+                }
+                if dmg & DamageType::Sword {
+                    mods.sword = modifier;
+                }
+                if dmg & DamageType::Sun {
+                    mods.sun = modifier;
+                }
+                if dmg & DamageType::Moon {
+                    mods.moon = modifier;
+                }
+                if dmg & DamageType::Eclipse {
+                    mods.eclipse = modifier;
+                }
+                if dmg & DamageType::Poison {
+                    mods.poison = modifier;
+                }
+                if dmg & DamageType::Arcane {
+                    mods.arcane = modifier;
+                }
+                if dmg & DamageType::Stun {
+                    mods.stun = modifier;
+                }
+                if dmg & DamageType::Blunt {
+                    mods.blunt = modifier;
+                }
+            }
+
+            let gold = self
+                .xp
+                .read_pointer(game, char_data.xp)
+                .map_or(0, |o| o.gold);
+
+            let e_guid = char_data.guid.resolve(game)?;
+
+            let enemy = super::Enemy::resolve(e_guid.chars(game));
+
+            let id = e_guid.to_string(game);
+
+            let name = char_data.name_localization_id;
+            let name = loc.localized(game, name);
+
+            Some(EnemyInfo {
+                hide_hp: actor.hide_hp,
+                gives_xp: actor.xp,
+                gold,
+                id,
+                name,
+                enemy,
+                stats,
+                mods,
             })
         }
     }
@@ -854,6 +1075,7 @@ mod combat {
                     EnemyEncounter::Enemy(Enemy {
                         id: o.id.as_str(),
                         name: &o.name,
+                        enemy: o.enemy,
                         hide_hp: o.hide_hp,
                         award_xp: o.gives_xp,
                         gold_drop: o.gold,
@@ -873,6 +1095,7 @@ mod combat {
         gold: u32,
         id: ArrayString<36>,
         name: String,
+        enemy: Option<super::Enemy>,
         stats: EnemyStats,
         mods: EnemyMods,
     }
@@ -898,6 +1121,7 @@ mod combat {
     pub struct Enemy<'a> {
         pub id: &'a str,
         pub name: &'a str,
+        pub enemy: Option<super::Enemy>,
         pub award_xp: bool,
         pub gold_drop: u32,
         pub hide_hp: bool,
@@ -965,9 +1189,17 @@ mod combat {
                         )
                     }
                     EnemyEncounter::Enemy(Enemy {
-                        id, name, hide_hp, ..
+                        id,
+                        name,
+                        enemy,
+                        hide_hp,
+                        ..
                     }) => {
-                        write!(f, "Enemy: id={} name={} hide_hp={}", id, name, hide_hp)
+                        write!(
+                            f,
+                            "Enemy: id={} name={} kind={:?} hide_hp={}",
+                            id, name, enemy, hide_hp
+                        )
                     }
                     EnemyEncounter::EnemyStats(EnemyStats {
                         current_hp,
@@ -1026,35 +1258,42 @@ mod progress {
     #[cfg(debugger)]
     use ahash::HashMap;
     #[cfg(debugger)]
-    use asr::{arrayvec::ArrayString, time::Duration, Address};
+    use asr::{arrayvec::ArrayString, time::Duration};
     use asr::{
-        game_engine::unity::il2cpp::{Class, Image, Module},
-        Process,
+        game_engine::unity::il2cpp::{Class2, Game},
+        MemReader, Pointer,
     };
-    #[cfg(debugger)]
     use bytemuck::AnyBitPattern;
+    use csharp_mem::CSString;
     #[cfg(debugger)]
-    use csharp_mem::{CSString, Map, Pointer, Set};
-
-    use super::Singleton;
+    use csharp_mem::Map;
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct ProgressionManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+
         timestamp: f64,
+
         #[rename = "playTime"]
         play_time: f64,
-        #[rename = "defeatedPermaDeathEnemies"]
-        defeated_perma_death_enemies: Pointer<Set<Pointer<CSString>>>,
     }
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct ActivityManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+
         #[rename = "mainActivity"]
         main_activity: Pointer<CSString>,
+
         #[rename = "subActivityIndex"]
         sub_activity_index: u32,
+
         #[cfg(debugger)]
         #[cfg_attr(debugger, rename = "allActivityData")]
         all_activities: Pointer<Map<ActivityReference, Pointer<ActivityData>>>,
@@ -1067,22 +1306,33 @@ mod progress {
     }
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct ActivityData {
         #[rename = "activityNameLoc"]
         name: super::loc::LocalizationId,
     }
 
     #[cfg(not(debugger))]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct LevelManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+
         #[rename = "loadingLevel"]
         is_loading: bool,
+
+        #[rename = "currentLevel"]
+        current_level: LevelReference,
     }
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct LevelManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+
         #[rename = "loadingLevel"]
         is_loading: bool,
         #[rename = "currentLevel"]
@@ -1094,192 +1344,170 @@ mod progress {
     }
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct LoadedLevelInfo {
         level: LevelReference,
     }
 
-    #[cfg(debugger)]
     #[derive(Copy, Clone, Debug, AnyBitPattern)]
     struct LevelReference {
         guid: Pointer<CSString>,
     }
 
     #[cfg(debugger)]
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct LevelDefinition {
         #[rename = "levelNameLocId"]
         name: super::loc::LocalizationId,
     }
 
-    #[cfg(debugger)]
-    #[derive(Class, Debug)]
-    struct CutsceneManager {}
-
-    #[cfg(debugger)]
-    impl ProgressionManagerBinding {
-        singleton!(ProgressionManager);
+    #[derive(Class2, Debug)]
+    struct CutsceneManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
     }
-
-    #[cfg(debugger)]
-    impl ActivityManagerBinding {
-        singleton!(ActivityManager);
-    }
-    #[cfg(debugger)]
-    impl LevelManagerBinding {
-        singleton!(LevelManager);
-    }
-
-    #[cfg(debugger)]
-    binding!(LoadedLevelInfoBinding => LoadedLevelInfo);
-    #[cfg(debugger)]
-    binding!(ActivityDataBinding => ActivityData);
-    #[cfg(debugger)]
-    binding!(LevelDefinitionBinding => LevelDefinition);
 
     pub struct Progression {
-        level_manager: Singleton<LevelManagerBinding>,
+        level_manager: LevelManagerBinding,
+        cutscene_manager: CutsceneManagerBinding,
         #[cfg(debugger)]
-        progression_manager: Singleton<ProgressionManagerBinding>,
+        progression_manager: ProgressionManagerBinding,
         #[cfg(debugger)]
-        activity_manager: Singleton<ActivityManagerBinding>,
+        activity_manager: ActivityManagerBinding,
         #[cfg(debugger)]
-        cutscene_manager: Address,
+        activity_data: ActivityDataBinding,
         #[cfg(debugger)]
         all_activities: HashMap<String, ActivityData>,
         #[cfg(debugger)]
         loaded_level_info: LoadedLevelInfoBinding,
         #[cfg(debugger)]
+        level_definition: LevelDefinitionBinding,
+        #[cfg(debugger)]
         all_levels: HashMap<String, LevelDefinition>,
     }
 
     impl Progression {
-        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
-            let level_manager = LevelManagerBinding::new(process, module, image).await;
-
-            #[cfg(debugger)]
-            {
-                let (loaded_level_info, activity_data, level_definition) = binds!(
-                    process,
-                    module,
-                    image,
-                    (LoadedLevelInfo, ActivityData, LevelDefinition)
-                );
-
-                let progression_manager =
-                    ProgressionManagerBinding::new(process, module, image).await;
-                let activity_manager = ActivityManagerBinding::new(process, module, image).await;
-
-                let cutscene_manager = CutsceneManager::bind(process, module, image).await;
-                let cutscene_manager = cutscene_manager
-                    .class()
-                    .wait_get_static_instance(process, module, "instance")
-                    .await;
-
-                log!("found CutsceneManager instance at {}", cutscene_manager);
-
-                let all_activities = ActivityManagerBinding::resolve(&activity_manager, process)
-                    .into_iter()
-                    .flat_map(|o| {
-                        let process = super::Proc(process);
-                        let activity_data = &activity_data;
-                        o.all_activities
-                            .resolve(process)
-                            .into_iter()
-                            .flat_map(move |o| {
-                                o.iter(process).filter_map(move |(ar, ad)| {
-                                    let ad = ad.resolve_with((process, activity_data))?;
-                                    let ar = ar.guid.resolve(process)?.to_std_string(process);
-                                    Some((ar, ad))
-                                })
-                            })
-                    })
-                    .collect();
-
-                let all_levels = LevelManagerBinding::resolve(&level_manager, process)
-                    .into_iter()
-                    .flat_map(|o| {
-                        let process = super::Proc(process);
-                        let level_definition = &level_definition;
-                        o.all_levels
-                            .resolve(process)
-                            .into_iter()
-                            .flat_map(move |o| {
-                                o.iter(process).filter_map(move |(lr, ld)| {
-                                    let ld = ld.resolve_with((process, level_definition))?;
-                                    let lr = lr.guid.resolve(process)?.to_std_string(process);
-                                    Some((lr, ld))
-                                })
-                            })
-                    })
-                    .collect();
-
-                Self {
-                    level_manager,
-                    progression_manager,
-                    activity_manager,
-                    cutscene_manager,
-                    all_activities,
-                    loaded_level_info,
-                    all_levels,
-                }
-            }
-
-            #[cfg(not(debugger))]
-            {
-                Self { level_manager }
+        #[cfg(not(debugger))]
+        pub fn new() -> Self {
+            Self {
+                level_manager: LevelManager::bind(),
+                cutscene_manager: CutsceneManager::bind(),
             }
         }
 
         #[cfg(debugger)]
+        pub fn new() -> Self {
+            use ahash::HashMapExt;
+
+            Self {
+                level_manager: LevelManager::bind(),
+                cutscene_manager: CutsceneManager::bind(),
+                progression_manager: ProgressionManager::bind(),
+                activity_manager: ActivityManager::bind(),
+                activity_data: ActivityData::bind(),
+                all_activities: HashMap::new(),
+                loaded_level_info: LoadedLevelInfo::bind(),
+                level_definition: LevelDefinition::bind(),
+                all_levels: HashMap::new(),
+            }
+        }
+
+        pub fn current_progression(&mut self, game: &Game<'_>) -> Option<CurrentProgression> {
+            let level = self.level_manager.read(game)?;
+            let is_loading = level.is_loading;
+            let is_in_cutscene = self.is_in_cutscene(game);
+            let level = level
+                .current_level
+                .guid
+                .resolve(game)
+                .and_then(|o| super::Level::resolve(o.chars(game)));
+            Some(CurrentProgression {
+                is_loading,
+                is_in_cutscene,
+                level,
+            })
+        }
+
+        pub fn is_in_cutscene(&mut self, game: &Game<'_>) -> bool {
+            fn inner(this: &mut Progression, game: &Game<'_>) -> Option<bool> {
+                let cutscene_manager = this.cutscene_manager.read(game)?;
+                let is_in_cutscene = game.read(cutscene_manager._instance.address() + 0x30)?;
+                Some(is_in_cutscene)
+            }
+
+            inner(self, game).unwrap_or(false)
+        }
+
+        #[cfg(debugger)]
         pub fn get_progress(
-            &self,
-            process: &Process,
+            &mut self,
+            game: &Game<'_>,
             loc: &super::loc::Loc,
         ) -> Option<CurrentProgress> {
-            let process = super::Proc(process);
+            let activity = self.activity_manager.read(game)?;
 
-            let level = LevelManagerBinding::resolve(&self.level_manager, process.0)?;
+            if self.all_activities.is_empty() {
+                if let Some(activities) = activity.all_activities.resolve(game) {
+                    self.all_activities = activities
+                        .iter(game)
+                        .filter_map(|(ar, ad)| {
+                            let ad = self.activity_data.read_pointer(game, ad)?;
+                            let ar = ar.guid.resolve(game)?.to_std_string(game);
+                            Some((ar, ad))
+                        })
+                        .collect();
+                }
+            }
 
-            let progression =
-                ProgressionManagerBinding::resolve(&self.progression_manager, process.0)?;
+            let level = self.level_manager.read(game)?;
 
-            let number_of_defeated_perma_death_enemies = progression
-                .defeated_perma_death_enemies
-                .resolve(process)?
-                .size();
+            if self.all_levels.is_empty() {
+                if let Some(levels) = level.all_levels.resolve(game) {
+                    self.all_levels = levels
+                        .iter(game)
+                        .filter_map(|(lr, ld)| {
+                            let ld = self.level_definition.read_pointer(game, ld)?;
+                            let lr = lr.guid.resolve(game)?.to_std_string(game);
+                            Some((lr, ld))
+                        })
+                        .collect();
+                }
+            }
 
-            let activity = ActivityManagerBinding::resolve(&self.activity_manager, process.0)?;
-            let main_activity = activity.main_activity.resolve(process)?.to_string(process);
+            let progression = self.progression_manager.read(game)?;
+
+            let main_activity = activity.main_activity.resolve(game)?.to_string(game);
             let activity_name = self
                 .all_activities
                 .get(main_activity.as_str())
-                .map_or_else(|| "".into(), |o| loc.localized(process, o.name).into());
+                .map_or_else(|| "".into(), |o| loc.localized(game, o.name).into());
 
-            let current_level = level
-                .current_level
-                .guid
-                .resolve(process)?
-                .to_string(process);
+            let current_level = level.current_level.guid.resolve(game)?;
+            let current_as_level = super::Level::resolve(current_level.chars(game));
+
+            let current_level = current_level.to_string(game);
             let current_level_name = self
                 .all_levels
                 .get(current_level.as_str())
-                .map_or_else(|| "".into(), |o| loc.localized(process, o.name).into());
+                .map_or_else(|| "".into(), |o| loc.localized(game, o.name).into());
 
-            let previous_level = level
-                .previous_level_info
-                .resolve_with((process, &self.loaded_level_info))
-                .and_then(|o| o.level.guid.resolve(process).map(|o| o.to_string(process)))
+            let previous_level = self
+                .loaded_level_info
+                .read_pointer(game, level.previous_level_info)
+                .and_then(|o| o.level.guid.resolve(game).map(|o| o.to_string(game)))
                 .unwrap_or_default();
             let previous_level_name = self
                 .all_levels
                 .get(previous_level.as_str())
-                .map_or_else(|| "".into(), |o| loc.localized(process, o.name).into());
+                .map_or_else(|| "".into(), |o| loc.localized(game, o.name).into());
 
-            let is_in_cutscene = process.0.read(self.cutscene_manager + 0x30).ok()?;
+            let cutscene_manager = self.cutscene_manager.read(game)?;
+            let is_in_cutscene = game.read(cutscene_manager._instance.address() + 0x30)?;
 
             Some(CurrentProgress {
                 is_loading: level.is_loading,
+                level: current_as_level,
                 timestamp: progression.timestamp,
                 play_time: progression.play_time,
                 main_activity,
@@ -1289,25 +1517,22 @@ mod progress {
                 current_level_name,
                 previous_level,
                 previous_level_name,
-                number_of_defeated_perma_death_enemies,
                 is_in_cutscene,
-            })
-        }
-
-        #[cfg(not(debugger))]
-        pub fn get_progress(&self, process: &Process) -> Option<CurrentProgress> {
-            let process = super::Proc(process);
-            let level = LevelManagerBinding::resolve(&self.level_manager, process.0)?;
-
-            Some(CurrentProgress {
-                is_loading: level.is_loading,
             })
         }
     }
 
     #[derive(Clone, PartialEq)]
+    pub struct CurrentProgression {
+        pub is_loading: bool,
+        pub is_in_cutscene: bool,
+        pub level: Option<super::Level>,
+    }
+
+    #[derive(Clone, PartialEq)]
     pub struct CurrentProgress {
         pub is_loading: bool,
+        pub level: Option<super::Level>,
         #[cfg(debugger)]
         pub timestamp: f64,
         #[cfg(debugger)]
@@ -1327,8 +1552,6 @@ mod progress {
         #[cfg(debugger)]
         pub previous_level_name: Rc<str>,
         #[cfg(debugger)]
-        pub number_of_defeated_perma_death_enemies: u32,
-        #[cfg(debugger)]
         pub is_in_cutscene: bool,
     }
 
@@ -1346,7 +1569,6 @@ mod progress {
                 id: self.main_activity,
                 name: Rc::clone(&self.activity_name),
                 sub_index: self.sub_activity_index,
-                perma_dead: self.number_of_defeated_perma_death_enemies,
             }
         }
 
@@ -1380,7 +1602,6 @@ mod progress {
         pub id: ArrayString<36>,
         pub name: Rc<str>,
         pub sub_index: u32,
-        pub perma_dead: u32,
     }
 
     #[cfg(debugger)]
@@ -1396,27 +1617,25 @@ mod progress {
 mod loc {
     use ahash::HashMap;
     use asr::{
-        game_engine::unity::il2cpp::{Class, Image, Module},
-        Process,
+        game_engine::unity::il2cpp::{Class2, Game, Module},
+        MemReader, Pointer, Process,
     };
     use bytemuck::AnyBitPattern;
-    use csharp_mem::{CSString, List, Map, MemReader, Pointer};
+    use csharp_mem::{CSString, List, Map};
 
-    use super::Singleton;
-
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     pub struct LocalizationManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+
         #[rename = "locCategories"]
         pub loc_categories: Pointer<Map<Pointer<CSString>, Pointer<LocCategory>>>,
         #[rename = "locCategoryLanguages"]
         pub loc_category_languages: Pointer<Map<Pointer<CSString>, Pointer<LocCategoryLanguage>>>,
     }
 
-    impl LocalizationManagerBinding {
-        singleton!(LocalizationManager);
-    }
-
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     pub struct LocCategory {
         #[rename = "categoryId"]
         pub category_id: Pointer<CSString>,
@@ -1424,22 +1643,18 @@ mod loc {
         pub loc_index_by_loc_string_id: Pointer<LocIndexByLocStringId>,
     }
 
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     pub struct LocIndexByLocStringId {
         pub dictionary: Pointer<Map<Pointer<CSString>, u32>>,
     }
 
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     pub struct LocCategoryLanguage {
         #[rename = "locCategoryId"]
         pub loc_category_id: Pointer<CSString>,
         pub language: ELanguage,
         pub strings: Pointer<List<Pointer<CSString>>>,
     }
-
-    binding!(LocCategoryBinding => LocCategory);
-    binding!(LocIndexByLocStringIdBinding => LocIndexByLocStringId);
-    binding!(LocCategoryLanguageBinding => LocCategoryLanguage);
 
     #[derive(Copy, Clone, Debug, AnyBitPattern)]
     #[repr(C)]
@@ -1477,32 +1692,24 @@ mod loc {
         }
     }
 
-    pub struct Localization {
-        manager: Singleton<LocalizationManagerBinding>,
+    pub struct Localization<'a> {
+        manager: LocalizationManagerBinding,
         category: LocCategoryBinding,
         index_by_id: LocIndexByLocStringIdBinding,
         category_language: LocCategoryLanguageBinding,
+        game: Option<Game<'a>>,
+        loc: Option<Loc>,
     }
 
-    impl Localization {
-        pub async fn new(process: &Process, module: &Module) -> Self {
-            let image = module
-                .wait_get_image(process, "Sabotage.Localization")
-                .await;
-            let manager = LocalizationManagerBinding::new(process, module, &image).await;
-
-            let (category, index_by_id, category_language) = binds!(
-                process,
-                module,
-                &image,
-                (LocCategory, LocIndexByLocStringId, LocCategoryLanguage)
-            );
-
+    impl<'a> Localization<'a> {
+        pub fn new() -> Self {
             Self {
-                manager,
-                category,
-                index_by_id,
-                category_language,
+                manager: LocalizationManager::bind(),
+                category: LocCategory::bind(),
+                index_by_id: LocIndexByLocStringId::bind(),
+                category_language: LocCategoryLanguage::bind(),
+                game: None,
+                loc: None,
             }
         }
     }
@@ -1513,33 +1720,62 @@ mod loc {
         pub strings: HashMap<String, CategoryLanguage>,
     }
 
-    impl Localization {
-        pub fn resolve(&self, process: &Process) -> Option<Loc> {
-            let manager = LocalizationManagerBinding::resolve(&self.manager, process)?;
-            let process = super::Proc(process);
+    impl<'a> Localization<'a> {
+        pub fn resolve(&mut self, process: &'a Process, module: &Module) -> Option<&Loc> {
+            #[allow(clippy::match_as_ref)]
+            match self.loc {
+                Some(ref loc) => Some(loc),
+                None => {
+                    let loc = self.resolve_loc(process, module)?;
+                    self.loc = Some(loc);
+                    self.loc.as_ref()
+                }
+            }
+        }
 
-            let categories = manager.loc_categories.resolve(process)?;
+        fn resolve_loc(&mut self, process: &'a Process, module: &Module) -> Option<Loc> {
+            let game = match self.game {
+                Some(ref game) => game,
+                None => {
+                    let image = module.get_image(process, "Sabotage.Localization")?;
+                    let game = Game::new(process, module.clone(), image);
+                    self.game = Some(game);
+                    self.game.as_ref().unwrap()
+                }
+            };
+
+            let manager = self.manager.read(game)?;
+
+            let categories = manager.loc_categories.resolve(game)?;
             let categories = categories
-                .iter(process)
-                .filter_map(|(id, cateogry)| {
-                    let id = id.resolve(process)?.to_std_string(process);
-                    let category = cateogry.resolve_with((process, &self.category))?;
-                    let category = category.resolve(process, &self.index_by_id)?;
+                .iter(game)
+                .filter_map(|(id, category)| {
+                    let id = id.resolve(game)?.to_std_string(game);
+                    let category = self.category.read_pointer(game, category)?;
+                    let category = category.resolve(game, &mut self.index_by_id)?;
                     Some((id, category))
                 })
-                .collect();
+                .collect::<HashMap<_, _>>();
 
-            let strings = manager.loc_category_languages.resolve(process)?;
+            if categories.is_empty() {
+                return None;
+            }
+
+            let strings = manager.loc_category_languages.resolve(game)?;
             let strings = strings
-                .iter(process)
+                .iter(game)
                 .filter_map(|(id, lang)| {
-                    let id = id.resolve(process)?.to_std_string(process);
+                    let id = id.resolve(game)?.to_std_string(game);
 
-                    let lang = lang.resolve_with((process, &self.category_language))?;
-                    let lang = lang.resolve(process)?;
+                    let lang = self.category_language.read_pointer(game, lang)?;
+                    let lang = lang.resolve(game)?;
                     Some((id, lang))
                 })
-                .collect();
+                .collect::<HashMap<_, _>>();
+
+            if strings.is_empty() {
+                return None;
+            }
 
             Some(Loc {
                 categories,
@@ -1557,26 +1793,22 @@ mod loc {
     impl LocCategory {
         fn resolve(
             &self,
-            process: super::Proc<'_>,
-            index_by_id: &LocIndexByLocStringIdBinding,
+            game: &Game<'_>,
+            index_by_id: &mut LocIndexByLocStringIdBinding,
         ) -> Option<Category> {
             let id = self
                 .category_id
-                .resolve(process)?
-                .to_std_string(process)
+                .resolve(game)?
+                .to_std_string(game)
                 .into_boxed_str();
 
-            let index = self
-                .loc_index_by_loc_string_id
-                .resolve_with((process, index_by_id))?;
-
-            let index = index.dictionary.resolve(process)?;
+            let index = index_by_id.read_pointer(game, self.loc_index_by_loc_string_id)?;
+            let index = index.dictionary.resolve(game)?;
 
             let index = index
-                .iter(process)
-                .into_iter()
+                .iter(game)
                 .flat_map(|(id, index)| {
-                    let id = id.resolve(process)?.to_std_string(process).into_boxed_str();
+                    let id = id.resolve(game)?.to_std_string(game).into_boxed_str();
                     let index = index as usize;
                     Some((id, index))
                 })
@@ -1594,16 +1826,16 @@ mod loc {
     }
 
     impl LocCategoryLanguage {
-        fn resolve(&self, process: super::Proc<'_>) -> Option<CategoryLanguage> {
+        fn resolve(&self, game: &Game<'_>) -> Option<CategoryLanguage> {
             let id = self
                 .loc_category_id
-                .resolve(process)?
-                .to_std_string(process)
+                .resolve(game)?
+                .to_std_string(game)
                 .into_boxed_str();
 
             let language = self.language.into();
 
-            let strings = self.strings.resolve(process)?;
+            let strings = self.strings.resolve(game)?;
 
             Some(CategoryLanguage {
                 id,
@@ -1614,18 +1846,7 @@ mod loc {
     }
 
     impl Loc {
-        pub async fn new(process: &Process, module: &Module, _image: &Image) -> Option<Self> {
-            let loc = Localization::new(process, module).await;
-            match loc.resolve(process) {
-                Some(loc) => {
-                    // loc.dump(process);
-                    Some(loc)
-                }
-                None => None,
-            }
-        }
-
-        pub fn localized<R: MemReader + Copy>(&self, process: R, id: LocalizationId) -> String {
+        pub fn localized<R: MemReader>(&self, process: &R, id: LocalizationId) -> String {
             self.lookup(process, id).map_or_else(
                 || {
                     id.loc_id
@@ -1636,9 +1857,9 @@ mod loc {
             )
         }
 
-        pub fn lookup<R: MemReader + Copy>(
+        pub fn lookup<R: MemReader>(
             &self,
-            process: R,
+            process: &R,
             loc_id: LocalizationId,
         ) -> Option<(String, Language)> {
             let cat_id = loc_id
@@ -1662,76 +1883,164 @@ mod loc {
 
             Some((string, strings.language))
         }
+    }
+}
 
-        #[allow(unused)]
-        fn dump(&self, process: &Process) {
-            let categories = self
-                .categories
-                .iter()
-                .map(|(k, v)| {
-                    let v = v
-                        .index
-                        .iter()
-                        .map(|(k, v)| (*v, k.clone()))
-                        .collect::<HashMap<_, _>>();
-                    (k.clone(), v)
-                })
-                .collect::<HashMap<_, _>>();
+#[cfg(not(debugger))]
+mod inventory {
+    use std::collections::hash_map::Entry;
 
-            let process = super::Proc(process);
+    use ahash::{HashMap, HashMapExt};
+    use asr::{
+        game_engine::unity::il2cpp::{Class2, Game},
+        watcher::Watcher,
+        Pointer,
+    };
+    use bytemuck::AnyBitPattern;
 
-            for (k, v) in self.strings.iter() {
-                log!("--- {k} ---");
-                log!("id, name");
-                if let Some(cat) = categories.get(k) {
-                    for (idx, name) in v.strings.iter(process).enumerate() {
-                        let name = name
-                            .resolve(process)
-                            .map(|o| o.to_std_string(process))
-                            .unwrap_or_default();
-                        let id = cat.get(&idx).map(|o| &**o).unwrap_or_default();
-                        log!("{id}, {name}");
-                    }
-                }
+    use csharp_mem::{CSString, Map};
+
+    #[derive(Class2, Debug)]
+    struct InventoryManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+
+        #[rename = "ownedInventoryItems"]
+        owned_items: Pointer<QuantityByInventoryItemReference>,
+    }
+
+    #[derive(Debug, Copy, Clone, AnyBitPattern)]
+    struct InventoryItemReference {
+        guid: Pointer<CSString>,
+    }
+
+    #[derive(Class2, Debug)]
+    struct QuantityByInventoryItemReference {
+        dictionary: Pointer<Map<InventoryItemReference, u32>>,
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Change<T> {
+        PickedUp(T),
+        Lost(T),
+    }
+
+    pub struct Inventory {
+        quantity: QuantityByInventoryItemReferenceBinding,
+        manager: InventoryManagerBinding,
+        number_of_owned_items: Watcher<u32>,
+        owned_key_items: HashMap<super::KeyItem, (u32, u32)>,
+        generation: u32,
+    }
+
+    impl Inventory {
+        pub fn new() -> Self {
+            Self {
+                quantity: QuantityByInventoryItemReference::bind(),
+                manager: InventoryManager::bind(),
+                number_of_owned_items: Watcher::new(),
+                owned_key_items: HashMap::new(),
+                generation: 0,
             }
+        }
+
+        pub fn check_key_items<'a>(
+            &'a mut self,
+            game: &'a Game<'_>,
+        ) -> impl Iterator<Item = Change<super::KeyItem>> + 'a {
+            fn inner<'a>(
+                this: &'a mut Inventory,
+                game: &'a Game<'_>,
+            ) -> Option<impl Iterator<Item = Change<super::KeyItem>> + 'a> {
+                let manager = this.manager.read(game)?;
+                let owned = this.quantity.read_pointer(game, manager.owned_items)?;
+                let owned = owned.dictionary.resolve(game)?;
+
+                let first = this.number_of_owned_items.pair.is_none();
+                let now_owned = this.number_of_owned_items.update_infallible(owned.size());
+
+                if !first && !now_owned.changed() {
+                    return None;
+                }
+
+                this.generation += 1;
+                let generation = this.generation;
+
+                for item in owned.iter(game).filter_map(move |(item, _amount)| {
+                    let item = item.guid.resolve(game)?;
+                    super::KeyItem::resolve(item.chars(game))
+                }) {
+                    match this.owned_key_items.entry(item) {
+                        Entry::Occupied(existing) => {
+                            existing.into_mut().1 = generation;
+                        }
+                        Entry::Vacant(missing) => {
+                            missing.insert((generation, generation));
+                        }
+                    };
+                }
+
+                let items =
+                    this.owned_key_items
+                        .iter()
+                        .filter_map(move |(item, &(insert, current))| {
+                            if current == generation {
+                                if insert == current {
+                                    Some(Change::PickedUp(*item))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                Some(Change::Lost(*item))
+                            }
+                        });
+
+                Some(items)
+            }
+
+            inner(self, game).into_iter().flatten()
         }
     }
 }
 
 #[cfg(debugger)]
 mod inventory {
-    use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
+    use std::collections::hash_map::Entry;
+
+    use ahash::{HashMap, HashMapExt};
     use asr::{
-        game_engine::unity::il2cpp::{Class, Image, Module},
+        game_engine::unity::il2cpp::{Class2, Game},
         string::ArrayString,
         watcher::Watcher,
-        Process,
+        Pointer,
     };
     use bytemuck::AnyBitPattern;
 
-    use csharp_mem::{CSString, Map, Pointer};
+    use csharp_mem::{CSString, Map};
 
-    use super::{
-        loc::{Loc, LocalizationId},
-        Singleton,
-    };
+    use super::loc::{Loc, LocalizationId};
 
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct InventoryManager {
+        #[singleton]
+        #[rename = "instance"]
+        _instance: Pointer<Self>,
+
         #[rename = "allInventoryItemData"]
         all_items: Pointer<Map<InventoryItemReference, Pointer<InventoryItem>>>,
         #[rename = "ownedInventoryItems"]
         owned_items: Pointer<QuantityByInventoryItemReference>,
     }
 
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct InventoryItem {
         guid: Pointer<CSString>,
         #[rename = "nameLocalizationId"]
         name: LocalizationId,
     }
 
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct KeyItem {}
 
     #[derive(Debug, Copy, Clone, AnyBitPattern)]
@@ -1739,17 +2048,10 @@ mod inventory {
         guid: Pointer<CSString>,
     }
 
-    #[derive(Class, Debug)]
+    #[derive(Class2, Debug)]
     struct QuantityByInventoryItemReference {
         dictionary: Pointer<Map<InventoryItemReference, u32>>,
     }
-
-    impl InventoryManagerBinding {
-        singleton!(InventoryManager);
-    }
-
-    binding!(QuantityByInventoryItemReferenceBinding => QuantityByInventoryItemReference);
-    binding!(InventoryItemBinding => InventoryItem);
 
     #[derive(Clone, Debug, PartialEq, Eq, Hash)]
     pub struct NamedKeyItem {
@@ -1757,77 +2059,134 @@ mod inventory {
         pub name: String,
     }
 
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Change<T> {
+        PickedUp(T),
+        Lost(T),
+    }
+
+    impl<T> Change<T> {
+        pub fn transform<U>(self, f: impl FnOnce(T) -> Option<U>) -> Option<Change<U>> {
+            match self {
+                Change::PickedUp(t) => f(t).map(Change::PickedUp),
+                Change::Lost(t) => f(t).map(Change::Lost),
+            }
+        }
+    }
+
     pub struct Inventory {
         inventory_item: InventoryItemBinding,
         key_item: KeyItemBinding,
         quantity: QuantityByInventoryItemReferenceBinding,
-        manager: Singleton<InventoryManagerBinding>,
+        manager: InventoryManagerBinding,
         all_key_items: HashMap<ArrayString<32>, NamedKeyItem>,
         number_of_owned_items: Watcher<u32>,
-        owned_key_items: HashSet<ArrayString<32>>,
+        owned_key_item_ids: HashMap<ArrayString<32>, (u32, u32)>,
+        owned_key_items: HashMap<super::KeyItem, (u32, u32)>,
+        generation: u32,
     }
 
     impl Inventory {
-        pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
-            let (inventory_item, key_item, quantity) = binds!(
-                process,
-                module,
-                image,
-                (InventoryItem, KeyItem, QuantityByInventoryItemReference)
-            );
-            let manager = InventoryManagerBinding::new(process, module, image).await;
+        pub fn new() -> Self {
             Self {
-                inventory_item,
-                key_item,
-                quantity,
-                manager,
-                number_of_owned_items: Watcher::new(),
+                inventory_item: InventoryItem::bind(),
+                key_item: KeyItem::bind(),
+                quantity: QuantityByInventoryItemReference::bind(),
+                manager: InventoryManager::bind(),
                 all_key_items: HashMap::new(),
-                owned_key_items: HashSet::new(),
+                number_of_owned_items: Watcher::new(),
+                owned_key_item_ids: HashMap::new(),
+                owned_key_items: HashMap::new(),
+                generation: 0,
             }
+        }
+
+        pub fn check_key_items<'a>(
+            &'a mut self,
+            game: &'a Game<'_>,
+        ) -> impl Iterator<Item = Change<super::KeyItem>> + 'a {
+            fn inner<'a>(
+                this: &'a mut Inventory,
+                game: &'a Game<'_>,
+            ) -> Option<impl Iterator<Item = Change<super::KeyItem>> + 'a> {
+                let manager = this.manager.read(game)?;
+                let owned = this.quantity.read_pointer(game, manager.owned_items)?;
+                let owned = owned.dictionary.resolve(game)?;
+
+                let first = this.number_of_owned_items.pair.is_none();
+                let now_owned = this.number_of_owned_items.update_infallible(owned.size());
+
+                if !first && !now_owned.changed() {
+                    return None;
+                }
+
+                this.generation += 1;
+                let generation = this.generation;
+
+                for item in owned.iter(game).filter_map(move |(item, _amount)| {
+                    let item = item.guid.resolve(game)?;
+                    super::KeyItem::resolve(item.chars(game))
+                }) {
+                    match this.owned_key_items.entry(item) {
+                        Entry::Occupied(existing) => {
+                            existing.into_mut().1 = generation;
+                        }
+                        Entry::Vacant(missing) => {
+                            missing.insert((generation, generation));
+                        }
+                    };
+                }
+
+                let items =
+                    this.owned_key_items
+                        .iter()
+                        .filter_map(move |(item, &(insert, current))| {
+                            if current == generation {
+                                if insert == current {
+                                    Some(Change::PickedUp(*item))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                Some(Change::Lost(*item))
+                            }
+                        });
+
+                Some(items)
+            }
+
+            inner(self, game).into_iter().flatten()
         }
 
         pub fn check_new<'a>(
             &'a mut self,
-            process: &'a Process,
-            module: &'a Module,
+            game: &'a Game<'_>,
             loc: &'a Loc,
-        ) -> impl Iterator<Item = &'a NamedKeyItem> + 'a {
-            self.cache_available_items(process, module, loc);
-            self.new_owned_key_items(process)
+        ) -> impl Iterator<Item = Change<&'a NamedKeyItem>> + 'a {
+            self.cache_available_items(game, loc);
+            self.changed_owned_key_items(game)
         }
 
-        pub fn check_lost<'a>(
-            &'a mut self,
-            process: &'a Process,
-            module: &'a Module,
-            loc: &'a Loc,
-        ) -> impl Iterator<Item = NamedKeyItem> + 'a {
-            self.cache_available_items(process, module, loc);
-            self.lost_owned_key_items(process)
-        }
-
-        fn cache_available_items(&mut self, process: &Process, module: &Module, loc: &Loc) -> bool {
+        fn cache_available_items(&mut self, game: &Game<'_>, loc: &Loc) -> bool {
             if !self.all_key_items.is_empty() {
                 return false;
             }
 
             (|| {
-                let process = super::Proc(process);
-                let manager = InventoryManagerBinding::resolve(&self.manager, process.0)?;
-                let all_items = manager.all_items.resolve(process)?;
+                let manager = self.manager.read(game)?;
+                let all_items = manager.all_items.resolve(game)?;
 
-                for (_, v) in all_items.iter(process) {
+                for (_, v) in all_items.iter(game) {
                     let is_key_item = self
                         .key_item
-                        .class()
-                        .is_instance(process.0, module, v.address_value())
+                        .class(game)?
+                        .is_instance(game.process(), game.module(), v.address())
                         .ok()?;
 
                     if is_key_item {
-                        let item = v.resolve_with((process, &self.inventory_item))?;
-                        let id = item.guid.resolve(process)?.to_string(process);
-                        let name = loc.localized(process, item.name);
+                        let item = self.inventory_item.read_pointer(game, v)?;
+                        let id = item.guid.resolve(game)?.to_string(game);
+                        let name = loc.localized(game, item.name);
                         let item = NamedKeyItem { id, name };
                         self.all_key_items.insert(id, item);
                     }
@@ -1839,70 +2198,60 @@ mod inventory {
             !self.all_key_items.is_empty()
         }
 
-        fn new_owned_key_items<'a>(
+        fn changed_owned_key_items<'a>(
             &'a mut self,
-            process: &'a Process,
-        ) -> impl Iterator<Item = &'a NamedKeyItem> + 'a {
+            game: &'a Game<'_>,
+        ) -> impl Iterator<Item = Change<&'a NamedKeyItem>> + 'a {
             Some(&self.all_key_items)
+                .filter(|o| !o.is_empty())
                 .and_then(|key_items| {
-                    let process = super::Proc(process);
-                    let manager = InventoryManagerBinding::resolve(&self.manager, process.0)?;
-                    let owned = manager
-                        .owned_items
-                        .resolve_with((process, &self.quantity))?;
-                    let owned = owned.dictionary.resolve(process)?;
-
-                    let amount = owned.size();
-                    let owned_items = &mut self.owned_key_items;
+                    let manager = self.manager.read(game)?;
+                    let owned = self.quantity.read_pointer(game, manager.owned_items)?;
+                    let owned = owned.dictionary.resolve(game)?;
 
                     let first = self.number_of_owned_items.pair.is_none();
-                    let now_owned = self.number_of_owned_items.update_infallible(amount);
+                    let now_owned = self.number_of_owned_items.update_infallible(owned.size());
 
-                    (first || now_owned.changed()).then(move || {
-                        owned.iter(process).filter_map(move |(item, _amount)| {
-                            let item = item.guid.resolve(process)?;
-                            let item = item.to_string(process);
-                            key_items
-                                .get(&item)
-                                .and_then(|v| owned_items.insert(item).then_some(v))
+                    if !first && !now_owned.changed() {
+                        return None;
+                    }
+
+                    self.generation += 1;
+                    let generation = self.generation;
+
+                    for item in owned.iter(game).filter_map(move |(item, _amount)| {
+                        let item = item.guid.resolve(game)?;
+                        let item = item.to_string(game);
+                        key_items.contains_key(&item).then_some(item)
+                    }) {
+                        match self.owned_key_item_ids.entry(item) {
+                            Entry::Occupied(existing) => {
+                                existing.into_mut().1 = generation;
+                            }
+                            Entry::Vacant(missing) => {
+                                missing.insert((generation, generation));
+                            }
+                        };
+                    }
+
+                    let items = self
+                        .owned_key_item_ids
+                        .iter()
+                        .filter_map(move |(item, &(insert, current))| {
+                            if current == generation {
+                                if insert == current {
+                                    Some(Change::PickedUp(item))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                Some(Change::Lost(item))
+                            }
                         })
-                    })
+                        .filter_map(|o| o.transform(|o| key_items.get(o)));
+                    Some(items)
                 })
                 .into_iter()
-                .flatten()
-        }
-
-        fn lost_owned_key_items<'a>(
-            &'a mut self,
-            process: &'a Process,
-        ) -> impl Iterator<Item = NamedKeyItem> + 'a {
-            Some(&mut self.all_key_items)
-                .and_then(|key_items| {
-                    let process = super::Proc(process);
-                    let manager = InventoryManagerBinding::resolve(&self.manager, process.0)?;
-                    let owned = manager
-                        .owned_items
-                        .resolve_with((process, &self.quantity))?;
-                    let owned = owned.dictionary.resolve(process)?;
-
-                    let amount = owned.size();
-                    let owned_items = &mut self.owned_key_items;
-
-                    let first = self.number_of_owned_items.pair.is_none();
-                    let now_owned = self.number_of_owned_items.update_infallible(amount);
-
-                    (first || now_owned.changed()).then(move || {
-                        let mut prev_owned = owned_items.clone();
-                        for (item, _amount) in owned.iter(process) {
-                            let item = item.guid.resolve(process)?;
-                            let item = item.to_string(process);
-                            prev_owned.remove(&item);
-                        }
-                        Some(prev_owned.into_iter().filter_map(|o| key_items.remove(&o)))
-                    })
-                })
-                .into_iter()
-                .flatten()
                 .flatten()
         }
     }
