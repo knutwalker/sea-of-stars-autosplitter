@@ -1,0 +1,68 @@
+Level { is_loading: false, id: "02b4d6511eeaf81428fc06320bb08cb8", name: "WizardLab" }
+Level { is_loading: false, id: "073c33bec52ce3644a04d32e6df2e088", name: "Infinite Abyss" }
+Level { is_loading: false, id: "0744d673327506e4e8027ef029e5aaf2", name: "Lake Docarria" }
+Level { is_loading: false, id: "0b5141ec4ffe9204c92b488045953671", name: "Island_B" }
+Level { is_loading: false, id: "11810c4630980eb43abf7fecebfd5a6b", name: "ElderMistTrials" }
+Level { is_loading: false, id: "166b6bd265d2bfe4e8b477cda9e18f54", name: "Island_C" }
+Level { is_loading: false, id: "17089a0830a73bc4ea5c7457b3b1001d", name: "Sky Shrine" }
+Level { is_loading: false, id: "20fd3c19d96a9cb41b1db9841837e8e4", name: "Fleshmancer's Lair" }
+Level { is_loading: false, id: "266a901e65780e94fba5cd7c25b58957", name: "AirElementalSkyland" }
+Level { is_loading: false, id: "26f7b5623e872ee4598a42790a4084ab", name: "FerrymanOutpost" }
+Level { is_loading: false, id: "296d1eb4ec1119a4b8caddf908550206", name: "Speedball Network Station" }
+Level { is_loading: false, id: "304315e8f18ddf149a746e9ecb9db201", name: "Mooncradle" }
+Level { is_loading: false, id: "3148529996942724aac85141f9d5a42d", name: "Lost Ones Hamlet" }
+Level { is_loading: false, id: "36d8c0b7f6372704b88a40a23c0f44f9", name: "Port Town of Brisk (rebuilt)" }
+Level { is_loading: false, id: "38847e9bbcd7e324c83c7ecae6026c5b", name: "Island_A" }
+Level { is_loading: false, id: "3914dcaa548d2f3488777a5b5339a5c8", name: "Es'tristae's Lookout" }
+Level { is_loading: false, id: "3aea0c635edd6d144b8c0deac0bc62d3", name: "Repine" }
+Level { is_loading: false, id: "3b993f74cdeaf56438be6b8b49cee4f5", name: "WindTunnelsMines" }
+Level { is_loading: false, id: "3cd46afe466424b41a5fa858f91aab0d", name: "MesaHike" }
+Level { is_loading: false, id: "3ce107d45e213f14aa34c1f8211f118a", name: "StonemasonsOutpost" }
+Level { is_loading: false, id: "3d1c3e6c6c2511743ac0278f551d299c", name: "StormCallerIsland" }
+Level { is_loading: false, id: "3dab1b3e3a5221c40989f1c68cfcd352", name: "" }
+Level { is_loading: false, id: "44a416e48c8d7d345b5e4507eb27e4de", name: "TitleScreen" }
+Level { is_loading: false, id: "4776b2f6ccdb0fe4195c6c0d89206875", name: "Home World" }
+Level { is_loading: false, id: "4d9b70c53db5b8c49bb5c60c6ef858bd", name: "ForbiddenCavern" }
+Level { is_loading: false, id: "4e88619fdd6b68440921d81755541d1b", name: "AutumnHills" }
+Level { is_loading: false, id: "4f7eb8930f8443346a1dcca19734fa49", name: "Seat of the Triumvirate" }
+Level { is_loading: false, id: "539d52ad02b071c45837d1329f8cbcc5", name: "SeaOfNightmare_WorldMap" }
+Level { is_loading: false, id: "6089fb6bc29dbfe4a8ef1be0245a27ee", name: "WaterTemple" }
+Level { is_loading: false, id: "62d9b9e11ce314a4da0c04eb812e696d", name: "Lucent" }
+Level { is_loading: false, id: "66299b28257ea224ca45113c4ff6f45d", name: "Bamboo Creek" }
+Level { is_loading: false, id: "6f2f5960c60f58d4c8d7761e950f604c", name: "SacredGrove" }
+Level { is_loading: false, id: "708d7a64b2bd2994787402375b2fe9f5", name: "The Sea of Stars" }
+Level { is_loading: false, id: "71dc51e52c9b55c4e900e847c58b6fa4", name: "Underground Base" }
+Level { is_loading: false, id: "72e9f2699f7c8394b93afa1d273ce67a", name: "MountainTrail" }
+Level { is_loading: false, id: "737979d8a1b9e6c4a82d7eb776953244", name: "Docks" }
+Level { is_loading: false, id: "745f076f7188dfa4d93d4ffed10232ca", name: "Port Town of Brisk (destroyed)" }
+Level { is_loading: false, id: "74b641ff0864f0d4f956c8c0eb3fe905", name: "TormentPeak" }
+Level { is_loading: false, id: "75a16b768d23caf4987bfe1515b04c57", name: "CursedWood" }
+Level { is_loading: false, id: "763e6cf37dffb6b46a2d842bf01c24fe", name: "Port Town of Brisk (original)" }
+Level { is_loading: false, id: "77a7111e97c4dab449722b724cdc8d3f", name: "Moorland" }
+Level { is_loading: false, id: "7f36e70224f47d344a794e3648fe630b", name: "SongShroomMarsh" }
+Level { is_loading: false, id: "87f3c0b8e8e6cb34daf39ec5cfdeae70", name: "Seraï's World" }
+Level { is_loading: false, id: "9b7059c7728114141ae39763ded8131f", name: "TheVespertineDungeon" }
+Level { is_loading: false, id: "9ddf8402fdc5c1e4ebab8d58d9aadb18", name: "Crypt" }
+Level { is_loading: false, id: "9ed0e7229b30c6c458f6b8bf1d210e68", name: "SkyGiantsVillage" }
+Level { is_loading: false, id: "adc3d53fe3e2f114086b8c0b4db69ded", name: "Sacrosanct Spires" }
+Level { is_loading: false, id: "b200a767bf5c84540a96a2e5c69e2147", name: "HauntedMansion" }
+Level { is_loading: false, id: "b3d251f726c4a9444b1051ea8509d8e2", name: "Peninsula" }
+Level { is_loading: false, id: "b7fc775a8024a9b45b71c254c435e160", name: "Hunting Fields" }
+Level { is_loading: false, id: "b89ab83751fbf624fa75610d9d5391ad", name: "NecromancerLair" }
+Level { is_loading: false, id: "b91f12c04bf187e4f912d5d1e62a1fed", name: "Kiln Mountain" }
+Level { is_loading: false, id: "bccf3d95b7cdcc44696dd504d6ef7510", name: "Derelict Factory" }
+Level { is_loading: false, id: "bfe9060167f8f0b42ac1c56a554f16a5", name: "ArchivistRoom" }
+Level { is_loading: false, id: "cdda6d8e9433a2e43b5f78d1732db12e", name: "GlacialPeak" }
+Level { is_loading: false, id: "ce5791e22e8ed5e4b8a9ed4768ae4fae", name: "Sacrosanct Spires" }
+Level { is_loading: false, id: "d5b7e69786d85e247841e4a7cf7aeb40", name: "JunglePath" }
+Level { is_loading: false, id: "dab5e0be1025fa7449bd4b5141b58dad", name: "CoralCascade" }
+Level { is_loading: false, id: "dcf312952e0135546888c4aba495042b", name: "ClockworkCastle" }
+Level { is_loading: false, id: "e0ab7a22509804c409342eaf41194eee", name: "Trek to the center of the world" }
+Level { is_loading: false, id: "eaa70cf38c2284242b6d14fdc0b244e0", name: "MossyCache" }
+Level { is_loading: false, id: "f1a3d633f8079654398f8266fc9feffb", name: "Vespertine" }
+Level { is_loading: false, id: "f1f754c32cb8d5c489e1124505587759", name: "Cerulean Expanse" }
+Level { is_loading: false, id: "f25152a99bdd7af4c8e454c8e2089d72", name: "Skyward Shrine" }
+Level { is_loading: false, id: "f66543e45ee80264085b007f8f59d56a", name: "FloodedGraveyard" }
+Level { is_loading: false, id: "f6cf83f526e66dc449b269503af9b0ac", name: "Skyward Shrine Bridge" }
+Level { is_loading: false, id: "fcc4099bd2aabfd4a8001999ffbbd282", name: "Sky Base" }
+Level { is_loading: false, id: "fe2cfebc0cf6bc540892964ac8db2274", name: "Mirth" }
