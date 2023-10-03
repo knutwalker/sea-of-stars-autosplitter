@@ -1,0 +1,920 @@
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+Enemy: id=33a6c54c83b68894a93b46c02da7fbc8 hp=140/155 hide_hp=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+Enemy: id=33a6c54c83b68894a93b46c02da7fbc8 hp=140/155 hide_hp=false
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+Enemy: level=12 speed=0 A/MA=50/85, D/MD=75/50
+Enemy: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+Enemy: level=12 speed=0 A/MA=50/85, D/MD=75/50
+Enemy: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=33a6c54c83b68894a93b46c02da7fbc8 hp=140/155 hide_hp=false
+Enemy: level=13 speed=0 A/MA=45/90, D/MD=100/50
+Enemy: any=1 sword=1 blunt=1 sun=0.75 moon=1.25 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+---mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+---mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=33a6c54c83b68894a93b46c02da7fbc8 hp=140/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=45/90, D/MD=100/50
+---mods: any=1 sword=1 blunt=1 sun=0.75 moon=1.25 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+├──stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+└──mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+├──stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+└──mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=33a6c54c83b68894a93b46c02da7fbc8 hp=140/155 hide_hp=false
+├──stats: level=13 speed=0 A/MA=45/90, D/MD=100/50
+└──mods: any=1 sword=1 blunt=1 sun=0.75 moon=1.25 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+=--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+=--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=33a6c54c83b68894a93b46c02da7fbc8 hp=140/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=45/90, D/MD=100/50
+=--mods: any=1 sword=1 blunt=1 sun=0.75 moon=1.25 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=33a6c54c83b68894a93b46c02da7fbc8 hp=140/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=45/90, D/MD=100/50
+|--mods: any=1 sword=1 blunt=1 sun=0.75 moon=1.25 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=a1a5c1333a1e7fe4f98de4d28b3b9900 hp=90/90 hide_hp=false
+|--stats: level=12 speed=0 A/MA=50/85, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=true achievement=false done=false running=true killed=false
+Enemy: id=cc767e360aab54d4ca314a206e32ffee hp=555/555 hide_hp=true
+|--stats: level=1 speed=0 A/MA=18/25, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=1894c41627be94d408bd64295ab6dd18 hp=555/555 hide_hp=true
+|--stats: level=1 speed=0 A/MA=45/42, D/MD=50/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=090c2ec246656b643a5d1e5b0bb3db28 hp=155/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=77/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Enemy: id=090c2ec246656b643a5d1e5b0bb3db28 hp=155/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=77/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=ffe45f0323cb8924e8296b7cc86d9d1b hp=375/375 hide_hp=false
+|--stats: level=8 speed=0 A/MA=36/33, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=090c2ec246656b643a5d1e5b0bb3db28 hp=155/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=77/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=090c2ec246656b643a5d1e5b0bb3db28 hp=155/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=77/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Enemy: id=3e00a15f95b3e1d4cb68e71021579758 hp=105/105 hide_hp=false
+|--stats: level=13 speed=0 A/MA=60/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=090c2ec246656b643a5d1e5b0bb3db28 hp=155/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=77/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Enemy: id=ffe45f0323cb8924e8296b7cc86d9d1b hp=375/375 hide_hp=false
+|--stats: level=8 speed=0 A/MA=36/33, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=ffe45f0323cb8924e8296b7cc86d9d1b hp=375/375 hide_hp=false
+|--stats: level=8 speed=0 A/MA=36/33, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=090c2ec246656b643a5d1e5b0bb3db28 hp=155/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=77/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Enemy: id=ffe45f0323cb8924e8296b7cc86d9d1b hp=375/375 hide_hp=false
+|--stats: level=8 speed=0 A/MA=36/33, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=090c2ec246656b643a5d1e5b0bb3db28 hp=155/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=77/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=090c2ec246656b643a5d1e5b0bb3db28 hp=155/155 hide_hp=false
+|--stats: level=13 speed=0 A/MA=77/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Enemy: id=ffe45f0323cb8924e8296b7cc86d9d1b hp=375/375 hide_hp=false
+|--stats: level=8 speed=0 A/MA=36/33, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=3e00a15f95b3e1d4cb68e71021579758 hp=105/105 hide_hp=false
+|--stats: level=13 speed=0 A/MA=60/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=e77c07b22ee83854e8c006101ef5731f name=Three hp=390/390 hide_hp=true
+|--stats: level=1 speed=0 A/MA=35/55, D/MD=75/65
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=76c4290aa2a896b4cb405e5a2d29b3a0 name=One hp=415/415 hide_hp=true
+|--stats: level=1 speed=0 A/MA=35/55, D/MD=90/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=0c831eb6bc1c0c648828b405cb8c0667 name=Four hp=488/488 hide_hp=true
+|--stats: level=1 speed=0 A/MA=80/0, D/MD=90/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=73c4c0922e5ae274eb759f86702353a8 name=Two hp=395/395 hide_hp=true
+|--stats: level=1 speed=0 A/MA=25/25, D/MD=60/65
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=true achievement=false done=false running=true killed=false
+Enemy: id=a5d39cc10d1848d478b59c892f636e3b name=Dweller of Strife hp=11500/11500 hide_hp=true
+|--stats: level=1 speed=0 A/MA=45/60, D/MD=148/148
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=true running=true killed=false
+Enemy: id=a5d39cc10d1848d478b59c892f636e3b name=Dweller of Strife hp=11497/11500 hide_hp=true
+|--stats: level=1 speed=0 A/MA=45/60, D/MD=148/148
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=135/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=135/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=112/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=13/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=125/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=112/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=13/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=125/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=112/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=13/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=125/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=4e00be6b55350d64090bff46533eb2aa hp=145/145 hide_hp=false
+|--stats: level=14 speed=0 A/MA=60/39, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 sun=1
+Enemy: id=4e00be6b55350d64090bff46533eb2aa hp=145/145 hide_hp=false
+|--stats: level=14 speed=0 A/MA=60/39, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 sun=1
+Enemy: id=4e00be6b55350d64090bff46533eb2aa hp=145/145 hide_hp=false
+|--stats: level=14 speed=0 A/MA=60/39, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=4e00be6b55350d64090bff46533eb2aa hp=145/145 hide_hp=false
+|--stats: level=14 speed=0 A/MA=60/39, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 sun=1
+Enemy: id=4e00be6b55350d64090bff46533eb2aa hp=145/145 hide_hp=false
+|--stats: level=14 speed=0 A/MA=60/39, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 sun=1
+Enemy: id=4e00be6b55350d64090bff46533eb2aa hp=145/145 hide_hp=false
+|--stats: level=14 speed=0 A/MA=60/39, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=4e00be6b55350d64090bff46533eb2aa hp=145/145 hide_hp=false
+|--stats: level=14 speed=0 A/MA=60/39, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 sun=1
+Enemy: id=4e00be6b55350d64090bff46533eb2aa hp=145/145 hide_hp=false
+|--stats: level=14 speed=0 A/MA=60/39, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=135/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+Enemy: id=9cbcb4063d9b8d8448cf96a2c14a6826 hp=135/135 hide_hp=false
+|--stats: level=14 speed=0 A/MA=50/55, D/MD=50/75
+|--mods: any=1 sword=1.25 blunt=1.25 sun=1 moon=1 poison=0.5, arcane=0.5 eclipse=1 sun=1
+--
+Encounter: boss=true achievement=false done=false running=true killed=false
+Enemy: id=7e2e026eb3354c74685427b26cf9acb8 name=Hydralion hp=1150/1150 hide_hp=true
+|--stats: level=1 speed=0 A/MA=44/65, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=true achievement=false done=false running=true killed=false
+Enemy: id=7e2e026eb3354c74685427b26cf9acb8 name=Hydralion hp=1150/1150 hide_hp=true
+|--stats: level=1 speed=0 A/MA=44/65, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=f08a6f708a24d87499439e14326c7a59 name=Firecracker hp=115/115 hide_hp=false
+|--stats: level=14 speed=0 A/MA=35/55, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=0.9 poison=1, arcane=0.9 eclipse=1 sun=1
+Enemy: id=f08a6f708a24d87499439e14326c7a59 name=Firecracker hp=115/115 hide_hp=false
+|--stats: level=14 speed=0 A/MA=35/55, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=0.9 poison=1, arcane=0.9 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=f08a6f708a24d87499439e14326c7a59 name=Firecracker hp=115/115 hide_hp=false
+|--stats: level=14 speed=0 A/MA=35/55, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=0.9 poison=1, arcane=0.9 eclipse=1 sun=1
+Enemy: id=f08a6f708a24d87499439e14326c7a59 name=Firecracker hp=115/115 hide_hp=false
+|--stats: level=14 speed=0 A/MA=35/55, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=0.9 poison=1, arcane=0.9 eclipse=1 sun=1
+Enemy: id=eb913e79ba73fd24c809490043822d62 hp=225/225 hide_hp=false
+|--stats: level=14 speed=0 A/MA=45/75, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=eb913e79ba73fd24c809490043822d62 hp=225/225 hide_hp=false
+|--stats: level=14 speed=0 A/MA=45/75, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Enemy: id=eb913e79ba73fd24c809490043822d62 hp=225/225 hide_hp=false
+|--stats: level=14 speed=0 A/MA=45/75, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=f08a6f708a24d87499439e14326c7a59 name=Firecracker hp=115/115 hide_hp=false
+|--stats: level=14 speed=0 A/MA=35/55, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=0.9 poison=1, arcane=0.9 eclipse=1 sun=1
+Enemy: id=f08a6f708a24d87499439e14326c7a59 name=Firecracker hp=115/115 hide_hp=false
+|--stats: level=14 speed=0 A/MA=35/55, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=0.9 poison=1, arcane=0.9 eclipse=1 sun=1
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=eb913e79ba73fd24c809490043822d62 hp=225/225 hide_hp=false
+|--stats: level=14 speed=0 A/MA=45/75, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Enemy: id=eb913e79ba73fd24c809490043822d62 hp=225/225 hide_hp=false
+|--stats: level=14 speed=0 A/MA=45/75, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+Enemy: id=f08a6f708a24d87499439e14326c7a59 name=Firecracker hp=115/115 hide_hp=false
+|--stats: level=14 speed=0 A/MA=35/55, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=0.9 poison=1, arcane=0.9 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=f08a6f708a24d87499439e14326c7a59 name=Firecracker hp=115/115 hide_hp=false
+|--stats: level=14 speed=0 A/MA=35/55, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=0.9 poison=1, arcane=0.9 eclipse=1 sun=1
+Enemy: id=eb913e79ba73fd24c809490043822d62 hp=225/225 hide_hp=false
+|--stats: level=14 speed=0 A/MA=45/75, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1.25 eclipse=1 sun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=816de006c125b9b4eaa7139bac5c6b77 name=Toadcano hp=1100/1100 hide_hp=true
+|--stats: level=1 speed=0 A/MA=55/5, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=50229dee567088647809e9b737b397b7 hp=38/38 hide_hp=false
+|--stats: level=6 speed=100 A/MA=14/28, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=50229dee567088647809e9b737b397b7 hp=38/38 hide_hp=false
+|--stats: level=6 speed=100 A/MA=14/28, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=50229dee567088647809e9b737b397b7 hp=38/38 hide_hp=false
+|--stats: level=6 speed=100 A/MA=14/28, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=d34eee0d16a720248a3ce2e6ce2b108b hp=80/80 hide_hp=false
+|--stats: level=10 speed=10 A/MA=45/21, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.2 moon=1.2 poison=1.2, arcane=1 eclipse=1 sun=1
+Enemy: id=d34eee0d16a720248a3ce2e6ce2b108b hp=80/80 hide_hp=false
+|--stats: level=10 speed=10 A/MA=45/21, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.2 moon=1.2 poison=1.2, arcane=1 eclipse=1 sun=1
+Enemy: id=d34eee0d16a720248a3ce2e6ce2b108b hp=80/80 hide_hp=false
+|--stats: level=10 speed=10 A/MA=45/21, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.2 moon=1.2 poison=1.2, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=50229dee567088647809e9b737b397b7 hp=38/38 hide_hp=false
+|--stats: level=6 speed=100 A/MA=14/28, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=d34eee0d16a720248a3ce2e6ce2b108b hp=80/80 hide_hp=false
+|--stats: level=10 speed=10 A/MA=45/21, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.2 moon=1.2 poison=1.2, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=50229dee567088647809e9b737b397b7 hp=38/38 hide_hp=false
+|--stats: level=6 speed=100 A/MA=14/28, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=50229dee567088647809e9b737b397b7 hp=38/38 hide_hp=false
+|--stats: level=6 speed=100 A/MA=14/28, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=50229dee567088647809e9b737b397b7 hp=38/38 hide_hp=false
+|--stats: level=6 speed=100 A/MA=14/28, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=f526fdd8553bd7344a34243f16f8fc96 hp=16/16 hide_hp=false
+|--stats: level=1 speed=100 A/MA=10/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=f526fdd8553bd7344a34243f16f8fc96 hp=16/16 hide_hp=false
+|--stats: level=1 speed=100 A/MA=10/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=f526fdd8553bd7344a34243f16f8fc96 hp=16/16 hide_hp=false
+|--stats: level=1 speed=100 A/MA=10/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=c3a2f1d99be4e0c42aca0ae1ff590028 hp=39/39 hide_hp=false
+|--stats: level=2 speed=0 A/MA=6/9, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1.5 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=f526fdd8553bd7344a34243f16f8fc96 hp=16/16 hide_hp=false
+|--stats: level=1 speed=100 A/MA=10/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=fc2736fdbb731394c98da56e8f476d5e hp=65/65 hide_hp=false
+|--stats: level=4 speed=100 A/MA=18/15, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1.25 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=c3a2f1d99be4e0c42aca0ae1ff590028 hp=39/39 hide_hp=false
+|--stats: level=2 speed=0 A/MA=6/9, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1.5 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+Enemy: id=c3a2f1d99be4e0c42aca0ae1ff590028 hp=39/39 hide_hp=false
+|--stats: level=2 speed=0 A/MA=6/9, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1.5 sun=1 moon=1 poison=1, arcane=1 eclipse=1 sun=1
+--
+Encounter: boss=false achievement=true done=false running=true killed=false
+Enemy: id=bb02eb1602e1ec142b85cd6b505ef5b6 name=Meduso hide_hp=true
+|--stats: hp=1666/1666 level=1 speed=10 A/MA=0/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=09b42ce72465d8149997ff1d7bb8708a name=Anointed hide_hp=false
+|--stats: hp=165/165 level=18 speed=0 A/MA=90/115, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=5ca276f08b35cd448b7458d85cc8ee5b name=Scout hide_hp=false
+|--stats: hp=138/138 level=18 speed=0 A/MA=105/105, D/MD=75/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=5ca276f08b35cd448b7458d85cc8ee5b name=Scout hide_hp=false
+|--stats: hp=138/138 level=18 speed=0 A/MA=105/105, D/MD=75/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=09b42ce72465d8149997ff1d7bb8708a name=Anointed hide_hp=false
+|--stats: hp=165/165 level=18 speed=0 A/MA=90/115, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=09b42ce72465d8149997ff1d7bb8708a name=Anointed hide_hp=false
+|--stats: hp=165/165 level=18 speed=0 A/MA=90/115, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=5ca276f08b35cd448b7458d85cc8ee5b name=Scout hide_hp=false
+|--stats: hp=138/138 level=18 speed=0 A/MA=105/105, D/MD=75/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=a071d2cccf4848746bbc63e27a0af3b9 name=Owlsassin hide_hp=false
+|--stats: hp=133/133 level=19 speed=0 A/MA=60/135, D/MD=75/90
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=5ca276f08b35cd448b7458d85cc8ee5b name=Scout hide_hp=false
+|--stats: hp=138/138 level=18 speed=0 A/MA=105/105, D/MD=75/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=a071d2cccf4848746bbc63e27a0af3b9 name=Owlsassin hide_hp=false
+|--stats: hp=133/133 level=19 speed=0 A/MA=60/135, D/MD=75/90
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=5ca276f08b35cd448b7458d85cc8ee5b name=Scout hide_hp=false
+|--stats: hp=138/138 level=18 speed=0 A/MA=105/105, D/MD=75/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=5ca276f08b35cd448b7458d85cc8ee5b name=Scout hide_hp=false
+|--stats: hp=138/138 level=18 speed=0 A/MA=105/105, D/MD=75/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=09b42ce72465d8149997ff1d7bb8708a name=Anointed hide_hp=false
+|--stats: hp=165/165 level=18 speed=0 A/MA=90/115, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=a071d2cccf4848746bbc63e27a0af3b9 name=Owlsassin hide_hp=false
+|--stats: hp=133/133 level=19 speed=0 A/MA=60/135, D/MD=75/90
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=09b42ce72465d8149997ff1d7bb8708a name=Anointed hide_hp=false
+|--stats: hp=165/165 level=18 speed=0 A/MA=90/115, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=a071d2cccf4848746bbc63e27a0af3b9 name=Owlsassin hide_hp=false
+|--stats: hp=133/133 level=19 speed=0 A/MA=60/135, D/MD=75/90
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=a071d2cccf4848746bbc63e27a0af3b9 name=Owlsassin hide_hp=false
+|--stats: hp=133/133 level=19 speed=0 A/MA=60/135, D/MD=75/90
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=a071d2cccf4848746bbc63e27a0af3b9 name=Owlsassin hide_hp=false
+|--stats: hp=133/133 level=19 speed=0 A/MA=60/135, D/MD=75/90
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=09b42ce72465d8149997ff1d7bb8708a name=Anointed hide_hp=false
+|--stats: hp=165/165 level=18 speed=0 A/MA=90/115, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=09b42ce72465d8149997ff1d7bb8708a name=Anointed hide_hp=false
+|--stats: hp=165/165 level=18 speed=0 A/MA=90/115, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=5ca276f08b35cd448b7458d85cc8ee5b name=Scout hide_hp=false
+|--stats: hp=138/138 level=18 speed=0 A/MA=105/105, D/MD=75/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=09b42ce72465d8149997ff1d7bb8708a name=Anointed hide_hp=false
+|--stats: hp=165/165 level=18 speed=0 A/MA=90/115, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=a071d2cccf4848746bbc63e27a0af3b9 name=Owlsassin hide_hp=false
+|--stats: hp=133/133 level=19 speed=0 A/MA=60/135, D/MD=75/90
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=5ca276f08b35cd448b7458d85cc8ee5b name=Scout hide_hp=false
+|--stats: hp=138/138 level=18 speed=0 A/MA=105/105, D/MD=75/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=bdff582229a41f3438d4c4faac714255 name=Brother Casugin hide_hp=true
+|--stats: hp=655/655 level=1 speed=0 A/MA=42/110, D/MD=75/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=c4480713abcb0d04f8a21a702987e6e1 name=Rachater  hide_hp=true
+|--stats: hp=799/799 level=1 speed=0 A/MA=75/110, D/MD=95/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=f4032b2323bc31d4590cf5197db3c3f1 name=Abstarak hide_hp=true
+|--stats: hp=920/920 level=1 speed=0 A/MA=95/110, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Encounter: boss=true achievement=true done=true running=true killed=true
+Enemy: id=f4032b2323bc31d4590cf5197db3c3f1 name=Abstarak hide_hp=true
+|--stats: hp=0/920 level=1 speed=0 A/MA=95/110, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=84a7c81c839bdd949b907f9e7f940c6b name=Yinke hide_hp=false
+|--stats: hp=210/210 level=21 speed=0 A/MA=35/150, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=84a7c81c839bdd949b907f9e7f940c6b name=Yinke hide_hp=false
+|--stats: hp=210/210 level=21 speed=0 A/MA=35/150, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=675f39fa7e962f3498552e334e40df9d name=Matsa'krun Claw hide_hp=false
+|--stats: hp=90/90 level=20 speed=0 A/MA=80/65, D/MD=120/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1.5 eclipse=1 stun=1
+Enemy: id=675f39fa7e962f3498552e334e40df9d name=Matsa'krun Claw hide_hp=false
+|--stats: hp=90/90 level=20 speed=0 A/MA=80/65, D/MD=120/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1.5 eclipse=1 stun=1
+Enemy: id=84a7c81c839bdd949b907f9e7f940c6b name=Yinke hide_hp=false
+|--stats: hp=210/210 level=21 speed=0 A/MA=35/150, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=675f39fa7e962f3498552e334e40df9d name=Matsa'krun Claw hide_hp=false
+|--stats: hp=90/90 level=20 speed=0 A/MA=80/65, D/MD=120/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1.5 eclipse=1 stun=1
+Enemy: id=675f39fa7e962f3498552e334e40df9d name=Matsa'krun Claw hide_hp=false
+|--stats: hp=90/90 level=20 speed=0 A/MA=80/65, D/MD=120/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1.5 eclipse=1 stun=1
+Enemy: id=675f39fa7e962f3498552e334e40df9d name=Matsa'krun Claw hide_hp=false
+|--stats: hp=90/90 level=20 speed=0 A/MA=80/65, D/MD=120/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1.5 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=68f9357277cff414eb0bf287dabd1cb0 name= hide_hp=false
+|--stats: hp=155/155 level=16 speed=0 A/MA=85/45, D/MD=90/25
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1.25 eclipse=1 stun=1
+Enemy: id=bbaa918249ce3a04883d88eca37cf348 name=Drone hide_hp=false
+|--stats: hp=132/132 level=15 speed=0 A/MA=75/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=675f39fa7e962f3498552e334e40df9d name=Matsa'krun Claw hide_hp=false
+|--stats: hp=90/90 level=20 speed=0 A/MA=80/65, D/MD=120/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1.5 eclipse=1 stun=1
+Enemy: id=84a7c81c839bdd949b907f9e7f940c6b name=Yinke hide_hp=false
+|--stats: hp=210/210 level=21 speed=0 A/MA=35/150, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=bbaa918249ce3a04883d88eca37cf348 name=Drone hide_hp=false
+|--stats: hp=132/132 level=15 speed=0 A/MA=75/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=675f39fa7e962f3498552e334e40df9d name=Matsa'krun Claw hide_hp=false
+|--stats: hp=90/90 level=20 speed=0 A/MA=80/65, D/MD=120/120
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1.5 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=84a7c81c839bdd949b907f9e7f940c6b name=Yinke hide_hp=false
+|--stats: hp=210/210 level=21 speed=0 A/MA=35/150, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=84a7c81c839bdd949b907f9e7f940c6b name=Yinke hide_hp=false
+|--stats: hp=210/210 level=21 speed=0 A/MA=35/150, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=bbaa918249ce3a04883d88eca37cf348 name=Drone hide_hp=false
+|--stats: hp=132/132 level=15 speed=0 A/MA=75/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=false done=false running=true killed=false
+Enemy: id=b2e5237a9dd152643abaf1fb3e3d7206 name=The Catalyst hide_hp=true
+|--stats: hp=175/799 level=1 speed=0 A/MA=0/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=68f9357277cff414eb0bf287dabd1cb0 name= hide_hp=false
+|--stats: hp=155/155 level=16 speed=0 A/MA=85/45, D/MD=90/25
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1.25 eclipse=1 stun=1
+Enemy: id=bbaa918249ce3a04883d88eca37cf348 name=Drone hide_hp=false
+|--stats: hp=132/132 level=15 speed=0 A/MA=75/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=a1c7a4d91b5c8c54b96c3a159ad3a1b5 name=Dweller of Dread hide_hp=true
+|--stats: hp=1100/11990 level=1 speed=0 A/MA=110/75, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=a1c7a4d91b5c8c54b96c3a159ad3a1b5 name=Dweller of Dread hide_hp=true
+|--stats: hp=0/11990 level=1 speed=0 A/MA=110/75, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=4cc1949eb31a81a4782b1075c32d268e name=Gulgul hide_hp=false
+|--stats: hp=49/49 level=7 speed=0 A/MA=49/15, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+Enemy: id=4cc1949eb31a81a4782b1075c32d268e name=Gulgul hide_hp=false
+|--stats: hp=49/49 level=7 speed=0 A/MA=49/15, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+Enemy: id=30372e1cddf4d8245861bd27363d5f9a name=Arentee hide_hp=false
+|--stats: hp=110/110 level=7 speed=0 A/MA=35/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1.25, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=f93fa5cbb04648047902c7c612f418ee name=Lonzon hide_hp=false
+|--stats: hp=75/75 level=8 speed=0 A/MA=19/50, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=f93fa5cbb04648047902c7c612f418ee name=Lonzon hide_hp=false
+|--stats: hp=75/75 level=8 speed=0 A/MA=19/50, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=4cc1949eb31a81a4782b1075c32d268e name=Gulgul hide_hp=false
+|--stats: hp=49/49 level=7 speed=0 A/MA=49/15, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+Enemy: id=4cc1949eb31a81a4782b1075c32d268e name=Gulgul hide_hp=false
+|--stats: hp=49/49 level=7 speed=0 A/MA=49/15, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=f93fa5cbb04648047902c7c612f418ee name=Lonzon hide_hp=false
+|--stats: hp=75/75 level=8 speed=0 A/MA=19/50, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=f93fa5cbb04648047902c7c612f418ee name=Lonzon hide_hp=false
+|--stats: hp=75/75 level=8 speed=0 A/MA=19/50, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=4cc1949eb31a81a4782b1075c32d268e name=Gulgul hide_hp=false
+|--stats: hp=49/49 level=7 speed=0 A/MA=49/15, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+Enemy: id=4cc1949eb31a81a4782b1075c32d268e name=Gulgul hide_hp=false
+|--stats: hp=49/49 level=7 speed=0 A/MA=49/15, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=2167ae398eb2ca3409431e9c3e48e7bc name=Lonzon hide_hp=false
+|--stats: hp=288/288 level=20 speed=0 A/MA=70/125, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=2167ae398eb2ca3409431e9c3e48e7bc name=Lonzon hide_hp=false
+|--stats: hp=288/288 level=20 speed=0 A/MA=70/125, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=9e34c0f2e5678124f8e503389bd174be name=Gulgul hide_hp=false
+|--stats: hp=222/222 level=20 speed=0 A/MA=95/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+Enemy: id=2167ae398eb2ca3409431e9c3e48e7bc name=Lonzon hide_hp=false
+|--stats: hp=288/288 level=20 speed=0 A/MA=70/125, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=2167ae398eb2ca3409431e9c3e48e7bc name=Lonzon hide_hp=false
+|--stats: hp=288/288 level=20 speed=0 A/MA=70/125, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=9e34c0f2e5678124f8e503389bd174be name=Gulgul hide_hp=false
+|--stats: hp=222/222 level=20 speed=0 A/MA=95/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+Enemy: id=9e34c0f2e5678124f8e503389bd174be name=Gulgul hide_hp=false
+|--stats: hp=222/222 level=20 speed=0 A/MA=95/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+Enemy: id=a5a0da6d66767df47b2523b04f14738a name=Mermofwizquard hide_hp=false
+|--stats: hp=266/266 level=20 speed=0 A/MA=110/0, D/MD=75/120
+|--mods: any=1 sword=1.25 blunt=1.25 sun=0.99 moon=0.99 poison=0.99, arcane=0.99 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=false done=false running=true killed=false
+Enemy: id=a43bbafa0d9b4c54a82079c03c9b638e name=Flesh Pile hide_hp=true
+|--stats: hp=2000/2000 level=1 speed=0 A/MA=0/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=d0a6e3e6b8288bf4bb7abd1cedb38ca3 name=Bone Pile hide_hp=true
+|--stats: hp=2000/2000 level=1 speed=0 A/MA=0/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.25 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=ce1df87d1facdf2469716190f2d6ad51 name=Romaya hide_hp=true
+|--stats: hp=3450/3450 level=1 speed=0 A/MA=170/195, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=6081b4ccf00a36343827bc45999f0df2 name=Melee Matey hide_hp=false
+|--stats: hp=114/114 level=9 speed=0 A/MA=28/88, D/MD=90/25
+|--mods: any=1 sword=0.9 blunt=0.9 sun=1.1 moon=1.1 poison=1.1, arcane=1.1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=7b27481afea42bb479dc3f81032a16d9 name=Elder Mist's Sword hide_hp=false
+|--stats: hp=800/800 level=1 speed=0 A/MA=0/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.5 moon=1.5 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=6b3a54899475c384385fdcee4fa1fe26 name=Elder Mist hide_hp=true
+|--stats: hp=3995/3995 level=1 speed=0 A/MA=160/200, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.5 moon=1.5 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=f526fdd8553bd7344a34243f16f8fc96 name=Luslug hide_hp=false
+|--stats: hp=16/16 level=1 speed=100 A/MA=10/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=f526fdd8553bd7344a34243f16f8fc96 name=Luslug hide_hp=false
+|--stats: hp=16/16 level=1 speed=100 A/MA=10/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=f526fdd8553bd7344a34243f16f8fc96 name=Luslug hide_hp=false
+|--stats: hp=16/16 level=1 speed=100 A/MA=10/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=2a9a0b40f493b11429febb5d927ef84b name=Srower hide_hp=false
+|--stats: hp=52/52 level=4 speed=0 A/MA=17/20, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=2a9a0b40f493b11429febb5d927ef84b name=Srower hide_hp=false
+|--stats: hp=52/52 level=4 speed=0 A/MA=17/20, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=e92dfcf5e74aeb34f98f32b8cd563ebf name=Croube hide_hp=false
+|--stats: hp=199/199 level=3 speed=100 A/MA=100/35, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=e126c542eee0aa7468e3f62ad953ca4d name=Training Croube hide_hp=false
+|--stats: hp=199/199 level=1 speed=100 A/MA=100/85, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=527885ffe2b65d049b17ebbe2d19136d name=Croube hide_hp=false
+|--stats: hp=199/199 level=6 speed=100 A/MA=100/35, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=ca5e21141b95aad49bc08403f495b38d name=Srower hide_hp=false
+|--stats: hp=211/211 level=4 speed=0 A/MA=95/80, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=ca5e21141b95aad49bc08403f495b38d name=Srower hide_hp=false
+|--stats: hp=211/211 level=4 speed=0 A/MA=95/80, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=ca5e21141b95aad49bc08403f495b38d name=Srower hide_hp=false
+|--stats: hp=211/211 level=4 speed=0 A/MA=95/80, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=1e62e41d77ce0f344bb884ffb4d92ebf name=Lonzon hide_hp=false
+|--stats: hp=244/244 level=8 speed=0 A/MA=75/185, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=1e62e41d77ce0f344bb884ffb4d92ebf name=Lonzon hide_hp=false
+|--stats: hp=244/244 level=8 speed=0 A/MA=75/185, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=cac4ad5c6feebe443bee7570b8e009b8 name=Gulgul hide_hp=false
+|--stats: hp=222/222 level=7 speed=0 A/MA=100/35, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.25, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=1b8297af091713d47ba1bfec1cc53d75 name=Sea Slug hide_hp=true
+|--stats: hp=4200/4200 level=1 speed=0 A/MA=0/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=b10c6cc7a49f77246848a74cae5ea119 name=Ranged Matey hide_hp=false
+|--stats: hp=190/190 level=9 speed=0 A/MA=125/80, D/MD=75/50
+|--mods: any=1 sword=1.1 blunt=1.1 sun=0.9 moon=0.9 poison=0.9, arcane=0.9 eclipse=1 stun=1
+Enemy: id=b10c6cc7a49f77246848a74cae5ea119 name=Ranged Matey hide_hp=false
+|--stats: hp=190/190 level=9 speed=0 A/MA=125/80, D/MD=75/50
+|--mods: any=1 sword=1.1 blunt=1.1 sun=0.9 moon=0.9 poison=0.9, arcane=0.9 eclipse=1 stun=1
+Enemy: id=980a2ead2b197f947aa5199927376dbb name=Melee Matey hide_hp=false
+|--stats: hp=205/205 level=9 speed=0 A/MA=111/210, D/MD=75/50
+|--mods: any=1 sword=0.9 blunt=0.9 sun=1.1 moon=1.1 poison=1.1, arcane=1.1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=470302d28c08352438d633aebb7c0cb5 name= hide_hp=false
+|--stats: hp=290/290 level=12 speed=0 A/MA=130/35, D/MD=50/75
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=eef757b01f5cd80459e634f109a1e69c name= hide_hp=false
+|--stats: hp=409/409 level=8 speed=0 A/MA=95/0, D/MD=90/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1.5, arcane=1 eclipse=1 stun=1
+Enemy: id=09ab35a6a52c0c74f836febf7d6e7a2e name=Anointed hide_hp=false
+|--stats: hp=325/325 level=18 speed=0 A/MA=135/210, D/MD=90/35
+|--mods: any=1 sword=1 blunt=1.25 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=16ffb4ed5f03d5e41b77b93689511c62 name=Clockwork Abomination hide_hp=true
+|--stats: hp=2666/2666 level=1 speed=0 A/MA=145/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=2ef49b6d9ec8fd64f95c49e951c1c8bc name=SlingRabbit hide_hp=false
+|--stats: hp=311/311 level=14 speed=0 A/MA=160/80, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 stun=1
+Enemy: id=2ef49b6d9ec8fd64f95c49e951c1c8bc name=SlingRabbit hide_hp=false
+|--stats: hp=311/311 level=14 speed=0 A/MA=160/80, D/MD=75/50
+|--mods: any=1 sword=0.5 blunt=0.5 sun=1 moon=1 poison=1.25, arcane=1.25 eclipse=1 stun=1
+Enemy: id=4608a56ce03fa8f42a467a917c438bcc name=BigBuggy hide_hp=false
+|--stats: hp=345/345 level=14 speed=0 A/MA=90/150, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1.5 poison=1, arcane=1.25 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=6c2a1e2872a0b5a469d1f9e437f60fb8 name=Shroomy Shroomy Knight hide_hp=false
+|--stats: hp=350/350 level=12 speed=0 A/MA=90/195, D/MD=90/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=0.1, arcane=0.1 eclipse=1 stun=1
+Enemy: id=5064bcbd33aceb1418e0ef6b4ed40515 name=Owlsassin hide_hp=false
+|--stats: hp=325/325 level=19 speed=0 A/MA=75/225, D/MD=90/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=9b7d5ffcd415b664abdc0987f7776524 name=Scout hide_hp=false
+|--stats: hp=344/344 level=18 speed=0 A/MA=95/210, D/MD=75/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=6c2a1e2872a0b5a469d1f9e437f60fb8 name=Shroomy Shroomy Knight hide_hp=false
+|--stats: hp=350/350 level=12 speed=0 A/MA=90/195, D/MD=90/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=0.1, arcane=0.1 eclipse=1 stun=1
+Enemy: id=5064bcbd33aceb1418e0ef6b4ed40515 name=Owlsassin hide_hp=false
+|--stats: hp=325/325 level=19 speed=0 A/MA=75/225, D/MD=90/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=9b7d5ffcd415b664abdc0987f7776524 name=Scout hide_hp=false
+|--stats: hp=344/344 level=18 speed=0 A/MA=95/210, D/MD=75/35
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=4c313193055778746a8caa5a3f51b8c6 name=Sylgain hide_hp=true
+|--stats: hp=2999/2999 level=1 speed=0 A/MA=70/300, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=23cf24f17aff1674786c7fc3086dc388 name=Croustalion hide_hp=true
+|--stats: hp=5225/5225 level=1 speed=0 A/MA=135/150, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=99c8b97ca2edc2644ab9b57832c9984c name=Ronin Cowboy hide_hp=false
+|--stats: hp=55/55 level=16 speed=0 A/MA=30/25, D/MD=120/120
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1.25 poison=1.25, arcane=1 eclipse=1 stun=1
+Enemy: id=bbaa918249ce3a04883d88eca37cf348 name=Drone hide_hp=false
+|--stats: hp=132/132 level=15 speed=0 A/MA=75/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=bbaa918249ce3a04883d88eca37cf348 name=Drone hide_hp=false
+|--stats: hp=132/132 level=15 speed=0 A/MA=75/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=true done=false running=true killed=false
+Enemy: id=5470cc5d33151fc418928aa32cb6876d name=Gun Goddess hide_hp=true
+|--stats: hp=4700/4700 level=1 speed=0 A/MA=210/135, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=d29103a8ea0fec54fac2a092acf1308a name=Sleuth hide_hp=false
+|--stats: hp=255/255 level=21 speed=45 A/MA=158/38, D/MD=150/100
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=4578c77a3346d0845bae8eb8f4bb1cd1 name=BilePile hide_hp=false
+|--stats: hp=666/666 level=22 speed=20 A/MA=125/70, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=17869a064ace26541bf54688ee3f7f93 name=Tsiclop hide_hp=false
+|--stats: hp=499/499 level=21 speed=150 A/MA=95/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=d29103a8ea0fec54fac2a092acf1308a name=Sleuth hide_hp=false
+|--stats: hp=255/255 level=21 speed=45 A/MA=158/38, D/MD=150/100
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=d29103a8ea0fec54fac2a092acf1308a name=Sleuth hide_hp=false
+|--stats: hp=255/255 level=21 speed=45 A/MA=158/38, D/MD=150/100
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=4578c77a3346d0845bae8eb8f4bb1cd1 name=BilePile hide_hp=false
+|--stats: hp=666/666 level=22 speed=20 A/MA=125/70, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=false done=false running=true killed=false
+Enemy: id=7a8be6ca5e9b7bd49ac7d2da414442cc name=LeJugg hide_hp=true
+|--stats: hp=2500/2500 level=1 speed=0 A/MA=65/95, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.15 moon=1.15 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=d29103a8ea0fec54fac2a092acf1308a name=Sleuth hide_hp=false
+|--stats: hp=255/255 level=21 speed=45 A/MA=158/38, D/MD=150/100
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=d29103a8ea0fec54fac2a092acf1308a name=Sleuth hide_hp=false
+|--stats: hp=255/255 level=21 speed=45 A/MA=158/38, D/MD=150/100
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=false killed=false
+Enemy: id=4578c77a3346d0845bae8eb8f4bb1cd1 name=BilePile hide_hp=false
+|--stats: hp=666/666 level=22 speed=20 A/MA=125/70, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=17869a064ace26541bf54688ee3f7f93 name=Tsiclop hide_hp=false
+|--stats: hp=499/499 level=21 speed=150 A/MA=95/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=17869a064ace26541bf54688ee3f7f93 name=Tsiclop hide_hp=false
+|--stats: hp=499/499 level=21 speed=150 A/MA=95/0, D/MD=90/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=f91e5e3a6e4c9934db9f0f799f727499 name=Stitcher hide_hp=false
+|--stats: hp=195/195 level=22 speed=0 A/MA=55/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=f91e5e3a6e4c9934db9f0f799f727499 name=Stitcher hide_hp=false
+|--stats: hp=195/195 level=22 speed=0 A/MA=55/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=f91e5e3a6e4c9934db9f0f799f727499 name=Stitcher hide_hp=false
+|--stats: hp=195/195 level=22 speed=0 A/MA=55/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=f91e5e3a6e4c9934db9f0f799f727499 name=Stitcher hide_hp=false
+|--stats: hp=195/195 level=22 speed=0 A/MA=55/0, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=8011d343c45597d40b59678731a6782d name=OAF hide_hp=false
+|--stats: hp=775/775 level=23 speed=0 A/MA=75/0, D/MD=90/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=8011d343c45597d40b59678731a6782d name=OAF hide_hp=false
+|--stats: hp=775/775 level=23 speed=0 A/MA=75/0, D/MD=90/75
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=false done=false running=true killed=false
+Enemy: id=54abc79fbf9dd2f4a8bd19cab8245391 name=Phase Reaper hide_hp=true
+|--stats: hp=2750/2750 level=1 speed=0 A/MA=110/110, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=fdffd9c935c80c44bb937f761764f245 name=Phase Reaper hide_hp=true
+|--stats: hp=688/688 level=1 speed=0 A/MA=110/110, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=fdffd9c935c80c44bb937f761764f245 name=Phase Reaper hide_hp=true
+|--stats: hp=688/688 level=1 speed=0 A/MA=110/110, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=0c24f27ebab6b854ba75700be2df5b21 name=Elysan'darëlle hide_hp=true
+|--stats: hp=2700/2700 level=1 speed=0 A/MA=200/125, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=0c24f27ebab6b854ba75700be2df5b21 name=Elysan'darëlle hide_hp=true
+|--stats: hp=2700/2700 level=1 speed=0 A/MA=200/125, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=true achievement=true done=false running=true killed=false
+Enemy: id=0e5b91e5ad0b2784da76ba6314004370 name=Elysan'darëlle hide_hp=true
+|--stats: hp=3000/3000 level=1 speed=0 A/MA=200/125, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=2a9a0b40f493b11429febb5d927ef84b name=Srower hide_hp=false
+|--stats: hp=52/52 level=4 speed=0 A/MA=17/20, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=e6ac627711e4ee44da103c47d1cd5736 name=Ant Bruiser hide_hp=false
+|--stats: hp=35/35 level=4 speed=0 A/MA=23/0, D/MD=120/0
+|--mods: any=1 sword=0.9 blunt=0.9 sun=1 moon=1.2 poison=1, arcane=1 eclipse=1 stun=1
+Enemy: id=e6ac627711e4ee44da103c47d1cd5736 name=Ant Bruiser hide_hp=false
+|--stats: hp=35/35 level=4 speed=0 A/MA=23/0, D/MD=120/0
+|--mods: any=1 sword=0.9 blunt=0.9 sun=1 moon=1.2 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=c3a2f1d99be4e0c42aca0ae1ff590028 name=Wanderer hide_hp=false
+|--stats: hp=39/39 level=2 speed=0 A/MA=6/9, D/MD=75/50
+|--mods: any=1 sword=1.5 blunt=1.5 sun=1 moon=1 poison=1, arcane=1 eclipse=1 stun=1
+--
+Encounter: boss=false achievement=false done=false running=true killed=false
+Enemy: id=fc2736fdbb731394c98da56e8f476d5e name=Rochèvre hide_hp=false
+|--stats: hp=65/65 level=4 speed=100 A/MA=18/15, D/MD=75/50
+|--mods: any=1 sword=1 blunt=1 sun=1.25 moon=1.25 poison=1, arcane=1 eclipse=1 stun=1
