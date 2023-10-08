@@ -45,6 +45,8 @@ impl Progress {
                 }};
             }
 
+            msg!("Event {:?}", event);
+
             let action = match event {
                 Event::GameStarted => Action::Start,
                 Event::LoadStart => Action::Pause,
