@@ -570,8 +570,8 @@ mod combat {
         #[singleton]
         #[rename = "instance"]
         _instance: Pointer<Self>,
-        #[rename = "currentEncounter"]
-        encounter: Pointer<Encounter>,
+        #[rename = "runningEncounters"]
+        encounters: Pointer<List<Pointer<Encounter>>>,
     }
 
     #[derive(Class2, Debug)]
@@ -601,8 +601,7 @@ mod combat {
                 this: &mut Combat,
                 game: &Game<'_>,
             ) -> Option<ArrayVec<super::Enemy, 6>> {
-                let combat = this.manager.read(game)?;
-                let encounter = this.encounter.read_pointer(game, combat.encounter)?;
+                let encounter = this.current_encounter(game)?;
                 let actors = encounter.enemy_actors.resolve(game);
 
                 let enemies = match actors {
@@ -631,7 +630,11 @@ mod combat {
 
         pub fn current_encounter(&mut self, game: &Game<'_>) -> Option<Encounter> {
             let manager = self.manager.read(game)?;
-            let encounter = self.encounter.read_pointer(game, manager.encounter)?;
+            let encounter = manager
+                .encounters
+                .resolve(game)
+                .and_then(|o| o.get(game, 0))?;
+            let encounter = self.encounter.read_pointer(game, encounter)?;
             Some(encounter)
         }
     }
