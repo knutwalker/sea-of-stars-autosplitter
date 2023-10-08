@@ -88,7 +88,7 @@ impl Progress {
                             cutscenes.set(2, Action::Split(Split::Brisk));
                             continue;
                         }
-                        (_, WorldEeater) => {
+                        (FleshmancersLair, WorldEeater) => {
                             cutscenes.set(1, Action::Split(Split::WorldEater));
                             continue;
                         }
