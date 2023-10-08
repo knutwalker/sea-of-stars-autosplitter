@@ -133,6 +133,7 @@ impl Progress {
                     Some(action) => action,
                     None => continue,
                 },
+                Event::CutsceneEnd => continue,
                 Event::EncounterStart(enemy) => {
                     use Enemy::*;
                     match enemy {
