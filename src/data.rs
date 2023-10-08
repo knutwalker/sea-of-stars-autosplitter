@@ -381,7 +381,7 @@ impl Level {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum KeyItem {
     Graplou,
@@ -935,6 +935,17 @@ mod combat {
             let char_data = self.char_data.read_pointer(game, actor.data)?;
             let e_guid = char_data.guid.resolve(game)?;
             let enemy = super::Enemy::resolve(e_guid.chars(game));
+            #[cfg(debugger)]
+            if enemy.is_none() {
+                let id = e_guid.to_string::<_, 36>(game);
+                let name = char_data
+                    .name_localization_id
+                    .loc_id
+                    .resolve(game)
+                    .map(|o| o.to_std_string(game))
+                    .unwrap_or_default();
+                log!("Unknown enemy id={id} name={name}");
+            }
 
             enemy
         }
