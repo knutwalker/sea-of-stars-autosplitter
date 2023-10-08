@@ -7,7 +7,7 @@ pub struct Game {
     cutscene: Watcher<bool>,
     level: Watcher<Level>,
     encounter: Option<ArrayVec<Enemy, 6>>,
-    events: ArrayVec<Event, 8>,
+    events: ArrayVec<Event, 7>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,8 +29,6 @@ pub enum Event {
     EncounterEnd(Enemy),
     EncountersStart(ArrayVec<Enemy, 6>),
     EncountersEnd(ArrayVec<Enemy, 6>),
-    BossStart,
-    BossEnd,
     PickedUpKeyItem(KeyItem),
     LostKeyItem(KeyItem),
 }
@@ -127,10 +125,6 @@ impl Game {
                         Event::EncountersEnd(start)
                     };
                     self.events.push(event);
-
-                    if enc.boss {
-                        self.events.push(Event::BossEnd);
-                    }
                 }
                 Some(_) => {}
                 None => {
@@ -153,10 +147,6 @@ impl Game {
                         Event::EncountersStart(enemies)
                     };
                     self.events.push(event);
-
-                    if enc.boss {
-                        self.events.push(Event::BossStart);
-                    }
                 }
                 _ => {}
             }
