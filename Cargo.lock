@@ -23,6 +23,7 @@ checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 [[package]]
 name = "asr"
 version = "0.1.0"
+source = "git+https://github.com/knutwalker/asr?branch=new-derive#9e0044c948041b29819eeb0f300dcd801d9ae153"
 dependencies = [
  "arrayvec",
  "asr-derive",
@@ -37,6 +38,7 @@ dependencies = [
 [[package]]
 name = "asr-derive"
 version = "0.1.0"
+source = "git+https://github.com/knutwalker/asr?branch=new-derive#9e0044c948041b29819eeb0f300dcd801d9ae153"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -101,6 +103,7 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 [[package]]
 name = "csharp-mem"
 version = "0.1.0"
+source = "git+https://github.com/knutwalker/csharp-mem#133c4b8b8cc5e2ecf32c7c31f0fe599a5eff74ff"
 dependencies = [
  "arrayvec",
  "asr",
