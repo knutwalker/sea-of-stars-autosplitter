@@ -7,12 +7,8 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ahash = { version = "0.8.3", default-features = false, features = [
-    "std",
-    "compile-time-rng",
-] }
 asr = { git = "https://github.com/knutwalker/asr", branch = "new-derive", features = [
-    "alloc",  # Working with allocations.
+    # "alloc",  # Working with allocations.
     "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
     # "flags", # Working with bit flags.
     # "float-vars", # Setting floating point variables.

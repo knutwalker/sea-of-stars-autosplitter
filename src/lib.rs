@@ -1,3 +1,5 @@
+#![no_std]
+
 use crate::{data::Data, splits::Progress};
 use asr::{
     future::next_tick,
@@ -25,6 +27,7 @@ mod game;
 mod splits;
 
 asr::async_main!(stable);
+asr::panic_handler!();
 
 async fn main() {
     asr::set_tick_rate(60.0);
