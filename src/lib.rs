@@ -13,12 +13,7 @@ use asr::{
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {{
-        let mut buf = ::asr::arrayvec::ArrayString::<1024>::new();
-        let _ = ::core::fmt::Write::write_fmt(
-            &mut buf,
-            ::core::format_args!($($arg)*),
-        );
-        ::asr::print_message(&buf);
+        ::asr::msg!($($arg)*);
     }};
 }
 
@@ -26,28 +21,6 @@ macro_rules! log {
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {};
-}
-
-#[macro_export]
-macro_rules! dbg {
-    // Copy of ::std::dbg! but for no_std with redirection to log!
-    () => {
-        $crate::log!("[{}:{}]", ::core::file!(), ::core::line!())
-    };
-    ($val:expr $(,)?) => {
-        // Use of `match` here is intentional because it affects the lifetimes
-        // of temporaries - https://stackoverflow.com/a/48732525/1063961
-        match $val {
-            tmp => {
-                $crate::log!("[{}:{}] {} = {:#?}",
-                    ::core::file!(), ::core::line!(), ::core::stringify!($val), &tmp);
-                tmp
-            }
-        }
-    };
-    ($($val:expr),+ $(,)?) => {
-        ($($crate::dbg!($val)),+,)
-    };
 }
 
 mod data;
