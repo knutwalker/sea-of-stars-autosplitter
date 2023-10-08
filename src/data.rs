@@ -376,7 +376,8 @@ impl Level {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(u8)]
 pub enum KeyItem {
     Graplou,
     MasterGhostSandwich,
@@ -1888,9 +1889,6 @@ mod loc {
 
 #[cfg(not(debugger))]
 mod inventory {
-    use std::collections::hash_map::Entry;
-
-    use ahash::{HashMap, HashMapExt};
     use asr::{
         game_engine::unity::il2cpp::{Class2, Game},
         watcher::Watcher,
@@ -1930,7 +1928,7 @@ mod inventory {
         quantity: QuantityByInventoryItemReferenceBinding,
         manager: InventoryManagerBinding,
         number_of_owned_items: Watcher<u32>,
-        owned_key_items: HashMap<super::KeyItem, (u32, u32)>,
+        owned_key_items: [(u32, u32); 4],
         generation: u32,
     }
 
@@ -1940,7 +1938,7 @@ mod inventory {
                 quantity: QuantityByInventoryItemReference::bind(),
                 manager: InventoryManager::bind(),
                 number_of_owned_items: Watcher::new(),
-                owned_key_items: HashMap::new(),
+                owned_key_items: [(u32::MAX, u32::MAX); 4], // capacity is number of KeyItem variants
                 generation: 0,
             }
         }
@@ -1971,30 +1969,36 @@ mod inventory {
                     let item = item.guid.resolve(game)?;
                     super::KeyItem::resolve(item.chars(game))
                 }) {
-                    match this.owned_key_items.entry(item) {
-                        Entry::Occupied(existing) => {
-                            existing.into_mut().1 = generation;
+                    match this.owned_key_items[item as usize] {
+                        (u32::MAX, u32::MAX) => {
+                            this.owned_key_items[item as usize] = (generation, generation);
                         }
-                        Entry::Vacant(missing) => {
-                            missing.insert((generation, generation));
+                        (_, ref mut current) => {
+                            *current = generation;
                         }
-                    };
+                    }
                 }
 
-                let items =
-                    this.owned_key_items
-                        .iter()
-                        .filter_map(move |(item, &(insert, current))| {
-                            if current == generation {
-                                if insert == current {
-                                    Some(Change::PickedUp(*item))
-                                } else {
-                                    None
-                                }
+                let items = this.owned_key_items.iter().enumerate().filter_map(
+                    move |(item, &(insert, current))| {
+                        let item = match item {
+                            0 => super::KeyItem::Graplou,
+                            1 => super::KeyItem::MasterGhostSandwich,
+                            2 => super::KeyItem::Map,
+                            3 => super::KeyItem::Seashell,
+                            _ => return None,
+                        };
+                        if current == generation {
+                            if insert == current {
+                                Some(Change::PickedUp(item))
                             } else {
-                                Some(Change::Lost(*item))
+                                None
                             }
-                        });
+                        } else {
+                            Some(Change::Lost(item))
+                        }
+                    },
+                );
 
                 Some(items)
             }
