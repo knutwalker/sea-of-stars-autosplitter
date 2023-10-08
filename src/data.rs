@@ -219,6 +219,7 @@ impl Enemy {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Level {
+    FleshmancersLair,
     Skyland,
     ArchivistRoom,
     BambooCreek,
@@ -280,7 +281,10 @@ impl Level {
         next! {
             '0' => eq!("02b4d6511eeaf81428fc06320bb08cb8" => Self::WizardLab),
             '1' => eq!("11810c4630980eb43abf7fecebfd5a6b" => Self::ElderMistTrials),
-            '2' => eq!("266a901e65780e94fba5cd7c25b58957" => Self::Skyland),
+            '2' => next! {
+                '0' => eq!("20fd3c19d96a9cb41b1db9841837e8e4" => Self::FleshmancersLair),
+                '6' => eq!("266a901e65780e94fba5cd7c25b58957" => Self::Skyland),
+            },
             '3' => next! {
                 '0' => eq!("304315e8f18ddf149a746e9ecb9db201" => Self::Mooncradle),
                 '1' => eq!("3148529996942724aac85141f9d5a42d" => Self::LostOnesHamlet),
@@ -336,6 +340,7 @@ impl Level {
     #[allow(unused)]
     fn id(self) -> &'static str {
         match self {
+            Self::FleshmancersLair => "20fd3c19d96a9cb41b1db9841837e8e4",
             Self::Skyland => "266a901e65780e94fba5cd7c25b58957",
             Self::ArchivistRoom => "bfe9060167f8f0b42ac1c56a554f16a5",
             Self::BambooCreek => "66299b28257ea224ca45113c4ff6f45d",
