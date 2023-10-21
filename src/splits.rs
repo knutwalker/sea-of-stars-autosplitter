@@ -79,7 +79,7 @@ impl ProgressData {
                     (Moorland, HomeWorld) => Action::Split(Split::SolarRain),
                     (CoralCascade, HomeWorld) => Action::Split(Split::ChoralCascades),
                     (BriskOriginal, HomeWorld) => Action::Split(Split::Boat),
-                    (Docks, HomeWorld) => Action::Split(Split::WraitIslandDocks),
+                    (Docks, HomeWorld) => Action::Split(Split::WraithIslandDocks),
                     (CursedWood, Lucent) => Action::Split(Split::CursedWoods),
                     (FloodedGraveyard, Lucent) => Action::Split(Split::EnchantedScarf),
                     (BriskDestroyed, Peninsula) => Action::Split(Split::BattleOfBrisk),
@@ -99,7 +99,7 @@ impl ProgressData {
                     (Mooncradle, SkyGiantsVillage) => Action::Split(Split::RIPGarl),
                     (SeraisWorld, Repine) => Action::Split(Split::DerelictFactory),
                     (Repine, SeraisWorld) => Action::Split(Split::Repine),
-                    (CeruleanExpanse, LostOnesHamlet) => Action::Split(Split::CeruleanExpense),
+                    (CeruleanExpanse, LostOnesHamlet) => Action::Split(Split::CeruleanExpanse),
                     (SeraisWorld, SacrosanctSpires) => Action::Split(Split::LeavingforSpires),
                     (EstristaesLookout, SeraisWorld) => Action::Split(Split::JustKickIt),
                     (HomeWorld, WizardLab) => {

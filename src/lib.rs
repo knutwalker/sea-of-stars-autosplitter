@@ -86,7 +86,7 @@ enum Split {
     ElderMist,
     Yeet,
     XtolsLanding,
-    _Moorlands,
+    _Moorland,
     SolarRain,
     WindMineTunnels,
     Rockie,
@@ -96,7 +96,7 @@ enum Split {
     DemoWizardLab,
     Chromatic,
     Boat,
-    WraitIslandDocks,
+    WraithIslandDocks,
     CursedWoods,
     FloodedGraveyard,
     Duke,
@@ -149,7 +149,7 @@ enum Split {
     Guardian,
     DerelictFactory,
     Repine,
-    CeruleanExpense,
+    CeruleanExpanse,
     LostOnesHamlet,
     Meduso,
     LeavingforSpires,
@@ -180,375 +180,375 @@ pub struct Settings {
     #[default = true]
     start: bool,
 
-    /// Split on finished boss encounters
-    #[default = true]
+    /// Split on finished boss encounters (overrides specific encounter splits)
+    #[default = false]
     split: bool,
 
-    /// until battle against wyrd
-    #[default = true]
+    /// Split when starting the battle against Wyrd
+    #[default = false]
     tutorial: bool,
 
-    /// defeated
+    /// Split when Wyrd is defeated
     #[default = true]
     wyrd: bool,
 
-    /// entering forbidden cavern
-    #[default = true]
+    /// Split when entering the forbidden cavern during training
+    #[default = false]
     training: bool,
 
-    /// split when cutscene against slug starts
-    #[default = true]
+    /// Split when starting the battle against Bossslug
+    #[default = false]
     forbidden_cavern: bool,
 
-    /// defeated
+    /// Split when Bossslug is defeated
     #[default = true]
     bossslug: bool,
 
-    /// loading into the elder mist trials level
-    #[default = true]
+    /// Split when entering the Elder Mist trials
+    #[default = false]
     mountain_trails: bool,
 
-    /// cutscene before boss
-    #[default = true]
+    /// Split when starting the battle against Elder Mist
+    #[default = false]
     elder_mist_trials: bool,
 
-    /// defeated
+    /// Split when Elder Mist is defeated
     #[default = true]
     elder_mist: bool,
 
-    /// being thrown / world map load
-    #[default = true]
+    /// Split when being yeeted the first time
+    #[default = false]
     yeet: bool,
 
-    /// mountain descend (demo)
-    #[default = true]
+    /// Split when entering Moorland
+    #[default = false]
     xtols_landing: bool,
 
-    /// when teaks cutscene starts
-    #[default = true]
-    moorlands: bool,
+    /// Splits when the cutscene with Teaks starts (not implemented)
+    #[default = false]
+    moorland: bool,
 
-    /// Loading into wordlmap from moorlands
-    #[default = true]
+    /// Split when leaving Moorland
+    #[default = false]
     solar_rain: bool,
 
-    /// cutscene with first sala starts
-    #[default = true]
+    /// Split when entering the first battle against Salamander
+    #[default = false]
     wind_mine_tunnels: bool,
 
-    /// first beatup
-    #[default = true]
+    /// Split when Salamander is defeated
+    #[default = false]
     rockie: bool,
 
-    /// defeated
+    /// Split when Malkomud is defeated
     #[default = true]
     malkomud: bool,
 
-    /// load from it into worldmap
-    #[default = true]
+    /// Split when leaving the Choral Cascades
+    #[default = false]
     choral_cascades: bool,
 
-    /// when entering the lab
-    #[default = true]
+    /// Split when entering the Wizard Lab
+    #[default = false]
     brisk: bool,
 
-    /// when entering the boss room
-    #[default = true]
+    /// Split when starting the battle against Chromatic Apparition
+    #[default = false]
     demo_wizard_lab: bool,
 
-    /// defeated
+    /// Split when Chromatic Apparition is defeated
     #[default = true]
     chromatic: bool,
 
-    /// obtain the "boat", loaded into worldmap
-    #[default = true]
+    /// Split when first sailing the world with "boat"
+    #[default = false]
     boat: bool,
 
-    /// loaded into world map from boat docks
-    #[default = true]
-    wrait_island_docks: bool,
+    /// Split when leaving the Wraith Island Docks
+    #[default = false]
+    wraith_island_docks: bool,
 
-    /// Leaving the area, back into town
-    #[default = true]
+    /// Split when leaving the Cursed Woods
+    #[default = false]
     cursed_woods: bool,
 
-    /// cutscene against duke starts
-    #[default = true]
+    /// Splits when the battle against the Duke starts
+    #[default = false]
     flooded_graveyard: bool,
 
-    /// defeated
+    /// Split when the Duke is defeated
     #[default = true]
     duke: bool,
 
-    /// obtaining graplou, then leaving
-    #[default = true]
+    /// Split when obtaining the Graplou
+    #[default = false]
     necromancers_lair: bool,
 
-    /// enter cutscene for romaya
-    #[default = true]
+    /// Split when the battle against Romaya starts
+    #[default = false]
     rope_dart: bool,
 
-    /// defeated
+    /// Split when Romaya is defeated
     #[default = true]
     romaya: bool,
 
-    /// travel from ferry to town
-    #[default = true]
+    /// Split when going back to Lucent from the Ferry
+    #[default = false]
     enchanted_scarf: bool,
 
-    /// Master Ghost Sandwhich
-    #[default = true]
+    /// Split when the Master Ghost Sandwhich is handed over
+    #[default = false]
     cooking: bool,
 
-    /// cutscene for big plant
-    #[default = true]
+    /// Split when the battle against the Botanic Horror starts
+    #[default = false]
     garden: bool,
 
-    /// defeated Botanical Horror
+    /// Split when the Botanic Horror is defeated
     #[default = true]
     big_plant: bool,
 
-    /// after Garl cutscene, spawn phase 2
-    #[default = true]
+    /// Split when Phase 2 against the Dweller of Woe starts
+    #[default = false]
     dweller_of_woe_p1: bool,
 
-    /// defeated
+    /// Split when the Dweller of Woe is defeated
     #[default = true]
     dweller_of_woe: bool,
 
-    /// load from brisk into peninsula
-    #[default = true]
+    /// Split when leaving the destroyed Brisk
+    #[default = false]
     battle_of_brisk: bool,
 
-    /// obtaining the worldmap item
-    #[default = true]
+    /// Split when obtaining the Map item
+    #[default = false]
     map: bool,
 
-    /// cutscene before Stormcaller
-    #[default = true]
+    /// Split when the battle against Stormcaller starts
+    #[default = false]
     three_towers: bool,
 
-    /// defeated
+    /// Split when Stormcaller is defeated
     #[default = true]
     stormcaller: bool,
 
-    /// load from brisk to worldmap
-    #[default = true]
+    /// Split when leaving Brisk to head for Mirth
+    #[default = false]
     ship: bool,
 
-    /// Mirth is build and loads in
-    #[default = true]
+    /// Split when Mirth is built
+    #[default = false]
     build_mirth: bool,
 
-    /// Leave Mirth to World map with boat
-    #[default = true]
+    /// Split when leaving Mirth
+    #[default = false]
     mirth: bool,
 
-    /// enter cutscene for 1,3
-    #[default = true]
+    /// Split when starting the battle against One and Three
+    #[default = false]
     jungle_path: bool,
 
-    /// defeated
+    /// Split when One and Three are defeated
     #[default = true]
     _13: bool,
 
-    /// lose Seashell KI, later enter worldmap
-    #[default = true]
+    /// Split when handing in the Seashell item
+    #[default = false]
     sacred_grove: bool,
 
-    /// enter Antsudlo
-    #[default = true]
+    /// Split when entering Antsudlo
+    #[default = false]
     shopping_conches: bool,
 
-    /// Antsudlo -> Glacial Peak
-    #[default = true]
+    /// Split when entering Glacial Peak
+    #[default = false]
     antsudlo: bool,
 
-    /// cutscene into 2,4
-    #[default = true]
+    /// Split when the battle against Two and Four starts
+    #[default = false]
     glacial_peak: bool,
 
-    /// defeated
+    /// Split when Two and Four are defeated
     #[default = true]
     _24: bool,
 
-    /// Glacial -> Great Archives
-    #[default = true]
+    /// Split when re-entering the Great Archives
+    #[default = false]
     signet_of_clarity: bool,
 
-    /// enter cutscene against Dweller of Torment
-    #[default = true]
+    /// Split when the battle against the Dweller of Torment starts
+    #[default = false]
     torment_peak: bool,
 
-    /// defeated
+    /// Split when the Dweller of Torment is defeated
     #[default = true]
     dweller_of_torment: bool,
 
-    /// load back into worldmap
-    #[default = true]
+    /// Split when leaving for Mesa Island
+    #[default = false]
     back_to_mirth: bool,
 
-    /// load back into worldmap
-    #[default = true]
+    /// Split when leaving the Mesa Hike
+    #[default = false]
     mesa_hike: bool,
 
-    /// cutscene to leaf monster
-    #[default = true]
+    /// Split when entering the battle against Leaf Monster
+    #[default = false]
     autumn_hills: bool,
 
-    /// defeated
+    /// Split when Leaf Monster is defeated
     #[default = true]
     leaf_monster: bool,
 
-    /// Bamboo creek -> loading into worldmap
-    #[default = true]
+    /// Split when leaving Bamboo Creek
+    #[default = false]
     bamboo_creek: bool,
 
-    /// Songshroom Marsh -> loading into worldmap
-    #[default = true]
+    /// Split when leaving Songshroom Marsh
+    #[default = false]
     songshroom_marsh: bool,
 
-    /// defeated
+    /// Split when Erlyna and Brugaves are defeated
     #[default = true]
     erlyna_and_brugaves: bool,
 
-    /// enter a cutscene / getting the quest
-    #[default = true]
+    /// Split when talking to ??? in the clock tower (not implemented)
+    #[default = false]
     clockwork_castle: bool,
 
-    /// cutscene before 1, 2, 3, 4
-    #[default = true]
+    /// Split when the battle against One, Two, Three, and Four starts
+    #[default = false]
     watchmaker: bool,
 
-    /// defeated
+    /// Split when One, Two, Three, and Four are defeated
     #[default = true]
     _1234: bool,
 
-    /// defeated
+    /// Split when the the Dweller of Strife is defeated the first time
     #[default = true]
     dweller_of_strife_p1: bool,
 
-    /// defeated
-    #[default = true]
+    /// Split when the Dweller of Strife is defeated the second time (scripted battle)
+    #[default = false]
     dweller_of_strife_p2: bool,
 
-    /// Skyward Shrine -> loading into worldmap
-    #[default = true]
+    /// Split when leavin Skyward Shrine after all the cutscenes
+    #[default = false]
     skyward_shrine: bool,
 
-    /// Counil -> loading into worldmap
-    #[default = true]
+    /// Split when leaving the Air Counil
+    #[default = false]
     council: bool,
 
-    /// Use the coral hammer on skypedia
-    #[default = true]
+    /// Split after using the Coral Hammer on Skyland
+    #[default = false]
     air_elemental: bool,
 
-    /// defeated
+    /// Split when Hydralion is defeated
     #[default = true]
     hydralion: bool,
 
-    /// cutscene before Toadcano
-    #[default = true]
+    /// Split when the battle against Toadcano starts
+    #[default = false]
     volcano: bool,
 
-    /// defeated
+    /// Split when Toadcano is defeated
     #[default = true]
     toadcano: bool,
 
-    /// Cutscenes into load Cloud Kingdom
-    #[default = true]
+    /// Split after the cutscenes after the Garl event
+    #[default = false]
     rip_garl: bool,
 
-    /// cutscene into boss
-    #[default = true]
+    /// Split when entering the battle against the Guardian
+    #[default = false]
     sea_of_stars: bool,
 
-    /// defeated
+    /// Split when the Guardian is defeated
     #[default = true]
     guardian: bool,
 
-    /// Worldmap -> Repine
-    #[default = true]
+    /// Split when entering Repine for the first time
+    #[default = false]
     derelict_factory: bool,
 
-    /// Repine -> Worldmap
-    #[default = true]
+    /// Split when leaving Repine for the first time (shopping)
+    #[default = false]
     repine: bool,
 
-    /// Load into Lost Ones Hamlet
-    #[default = true]
-    cerulean_expense: bool,
+    /// Split when leaving the Cerulean Expanse
+    #[default = false]
+    cerulean_expanse: bool,
 
-    /// cutscene before Meduso
-    #[default = true]
+    /// Split when the battle against Meduso starts
+    #[default = false]
     lost_ones_hamlet: bool,
 
-    /// defeated
+    /// Split when Meduso is defeated
     #[default = true]
     meduso: bool,
 
-    /// load worldmap -> Sacrosanct Spires
-    #[default = true]
+    /// Split when entering the Sacrosanct Spires
+    #[default = false]
     leaving_for_spires: bool,
 
-    /// cutscene before Triumvirate
-    #[default = true]
+    /// Split when the battle against the Triumvirate starts
+    #[default = false]
     hunting_fields: bool,
 
-    /// defeated
+    /// Split when the Triumvirate is defeated
     #[default = true]
     triumvirate: bool,
 
-    /// load from Lookout into worldmap
-    #[default = true]
+    /// Split when leaving the Lookout
+    #[default = false]
     just_kick_it: bool,
 
-    /// cutscene before Catalyst
-    #[default = true]
+    /// Split when the battle against the Catalyst starts
+    #[default = false]
     sky_base: bool,
 
-    /// defeated
+    /// Split when the Catalyst is defeated
     #[default = true]
     catalyst: bool,
 
-    /// cutscene before Dweller of Dread
-    #[default = true]
+    /// Split when the battle against the Dweller of Dread starts
+    #[default = false]
     infinite_abyss: bool,
 
-    /// defeated
+    /// Split when the Dweller of Dread is defeated
     #[default = true]
     dweller_of_dread: bool,
 
-    /// cutscene before LeJugg
-    #[default = true]
+    /// Split when the battle against LeJugg starts
+    #[default = false]
     fleshmancers_lair: bool,
 
-    /// defeated
+    /// Split when LeJugg is defeated
     #[default = true]
     le_jugg: bool,
 
-    /// cutscene before Reaper
-    #[default = true]
+    /// Split when the battle against Phase Reaper starts
+    #[default = false]
     nolan_simulator: bool,
 
-    /// defeated
+    /// Split when Phase Reaper is defeated
     #[default = true]
     reaper: bool,
 
-    /// cutscene before Elysan
-    #[default = true]
+    /// Split when the battle against Elysan'darëlle starts
+    #[default = false]
     ffvii_simulator: bool,
 
-    /// defeated
-    #[default = true]
+    /// Split when Elysan'darëlle Phase 1 is defeated
+    #[default = false]
     elysandarelle_p1: bool,
 
-    /// defeated
+    /// Split when Elysan'darëlle Phase 2 is defeated
     #[default = true]
     elysandarelle_p2: bool,
 
-    /// defeated
+    /// Split on the final damage on the World Eater (Any% end)
     #[default = true]
     world_eater: bool,
 }
@@ -571,7 +571,7 @@ impl Settings {
                 Split::ElderMist => self.elder_mist || self.split,
                 Split::Yeet => self.yeet,
                 Split::XtolsLanding => self.xtols_landing,
-                Split::_Moorlands => self.moorlands,
+                Split::_Moorland => self.moorland,
                 Split::SolarRain => self.solar_rain,
                 Split::WindMineTunnels => self.wind_mine_tunnels,
                 Split::Rockie => self.rockie,
@@ -581,7 +581,7 @@ impl Settings {
                 Split::DemoWizardLab => self.demo_wizard_lab,
                 Split::Chromatic => self.chromatic || self.split,
                 Split::Boat => self.boat,
-                Split::WraitIslandDocks => self.wrait_island_docks,
+                Split::WraithIslandDocks => self.wraith_island_docks,
                 Split::CursedWoods => self.cursed_woods,
                 Split::FloodedGraveyard => self.flooded_graveyard,
                 Split::Duke => self.duke || self.split,
@@ -634,7 +634,7 @@ impl Settings {
                 Split::Guardian => self.guardian || self.split,
                 Split::DerelictFactory => self.derelict_factory,
                 Split::Repine => self.repine,
-                Split::CeruleanExpense => self.cerulean_expense,
+                Split::CeruleanExpanse => self.cerulean_expanse,
                 Split::LostOnesHamlet => self.lost_ones_hamlet,
                 Split::Meduso => self.meduso || self.split,
                 Split::LeavingforSpires => self.leaving_for_spires,
