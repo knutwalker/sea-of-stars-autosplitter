@@ -71,9 +71,10 @@ enum Action {
     GameResume,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 enum Split {
+    _Start,
     Tutorial,
     Wyrd,
     Training,
@@ -558,6 +559,7 @@ impl Settings {
             Action::GamePause | Action::GameResume => false,
             Action::Start => self.start,
             Action::Split(s) => match s {
+                Split::_Start => false,
                 Split::Tutorial => self.tutorial,
                 Split::Wyrd => self.wyrd || self.split,
                 Split::Training => self.training,
