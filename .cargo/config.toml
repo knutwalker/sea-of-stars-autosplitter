@@ -12,3 +12,6 @@ target-dir = "target"
 b = [
     "build", "--release",
 ]
+d = [
+    "build", "--release", "--config", "build.rustflags=[\"--cfg=debugger\"]",
+]

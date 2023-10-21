@@ -3,12 +3,13 @@
 use crate::{data::Data, splits::Progress};
 use asr::{
     future::next_tick,
+    msg,
     settings::Gui,
     timer::{self, TimerState},
     Process,
 };
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, debugger))]
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => {{
@@ -16,10 +17,10 @@ macro_rules! log {
     }};
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(any(debug_assertions, debugger)))]
 #[macro_export]
 macro_rules! log {
-    ($($arg:tt)*) => {};
+    ($($arg:tt)*) => {{}};
 }
 
 mod data;
@@ -659,22 +660,22 @@ impl Settings {
 
 fn act(action: Action, settings: &Settings) {
     if settings.filter(&action) {
-        asr::msg!("Decided on an action: {action:?}");
+        log!("Decided on an action: {action:?}");
         match (action, timer::state() == TimerState::Running) {
             (Action::Start, false) => {
-                log!("Starting timer");
+                msg!("Starting timer");
                 timer::start();
             }
-            (Action::Split(_split), true) => {
-                log!("Splitting: {_split:?}");
+            (Action::Split(split), true) => {
+                msg!("Splitting: {split:?}");
                 timer::split();
             }
             (Action::Pause, true) => {
-                log!("Pause game time");
+                msg!("Pause game time");
                 timer::pause_game_time();
             }
             (Action::Resume, true) => {
-                log!("Resume game time");
+                msg!("Resume game time");
                 timer::resume_game_time();
             }
             _ => {}
