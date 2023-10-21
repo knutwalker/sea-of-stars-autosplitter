@@ -10,8 +10,7 @@ use asr::arrayvec::ArrayVec;
 pub struct Progress {
     game: Game,
     actions: ArrayVec<Action, 8>,
-    cutscenes: Delayed,
-    last_split: Split,
+    data: ProgressData,
 }
 
 impl Progress {
@@ -19,8 +18,7 @@ impl Progress {
         Self {
             game: Game::new(),
             actions: ArrayVec::new(),
-            cutscenes: Delayed::default(),
-            last_split: Split::_Start,
+            data: ProgressData::new(),
         }
     }
 
@@ -38,18 +36,33 @@ impl Progress {
     }
 
     fn handle_events(&mut self) {
-        let cutscenes = &mut self.cutscenes;
-        let last_splut = &mut self.last_split;
+        let data = &mut self.data;
         for event in self.game.events().flat_map(Event::expand) {
-            let action = Self::handle_event(cutscenes, last_splut, &event);
+            let action = data.handle_event(&event);
             match action {
                 Some(action) => self.actions.push(action),
                 None => log!("Unhandled event: {:?}", event),
             }
         }
     }
+}
 
-    fn convert_event(cutscenes: &mut Delayed, event: &Event) -> Option<Action> {
+struct ProgressData {
+    cutscenes: Delayed,
+    last_split: Split,
+    mirth_split: bool,
+}
+
+impl ProgressData {
+    pub fn new() -> Self {
+        Self {
+            cutscenes: Delayed::default(),
+            last_split: Split::_Start,
+            mirth_split: false,
+        }
+    }
+
+    fn convert_event(&mut self, event: &Event) -> Option<Action> {
         let action = match event {
             Event::GameStarted => Action::Start,
             Event::LoadStart => Action::Pause,
@@ -90,17 +103,17 @@ impl Progress {
                     (SeraisWorld, SacrosanctSpires) => Action::Split(Split::LeavingforSpires),
                     (EstristaesLookout, SeraisWorld) => Action::Split(Split::JustKickIt),
                     (HomeWorld, WizardLab) => {
-                        cutscenes.set(2, Action::Split(Split::Brisk));
+                        self.cutscenes.set(2, Action::Split(Split::Brisk));
                         return None;
                     }
                     (FleshmancersLair, WorldEeater) => {
-                        cutscenes.set(1, Action::Split(Split::WorldEater));
+                        self.cutscenes.set(1, Action::Split(Split::WorldEater));
                         return None;
                     }
                     _ => return None,
                 }
             }
-            Event::CutsceneStart => match cutscenes.tick() {
+            Event::CutsceneStart => match self.cutscenes.tick() {
                 Some(action) => action,
                 None => return None,
             },
@@ -191,7 +204,7 @@ impl Progress {
             }
             Event::PickedUpKeyItem(KeyItem::Graplou) => Action::Split(Split::NecromancerssLair),
             Event::PickedUpKeyItem(KeyItem::Map) => {
-                cutscenes.set(1, Action::Split(Split::Map));
+                self.cutscenes.set(1, Action::Split(Split::Map));
                 return None;
             }
             Event::LostKeyItem(KeyItem::MasterGhostSandwich) => Action::Split(Split::Cooking),
@@ -202,32 +215,34 @@ impl Progress {
         Some(action)
     }
 
-    fn filter_action(last_split: &mut Split, action: Action) -> Option<Action> {
+    fn filter_action(&mut self, action: Action) -> Option<Action> {
         if let Action::Split(s) = action {
-            if s <= *last_split {
+            if s <= self.last_split {
                 log!(
                     "Split {:?} is ignored because it is before last split {:?}",
                     s,
-                    last_split
+                    self.last_split
                 );
                 return None;
             }
-            *last_split = s;
+
+            if s == Split::BuildMirth && !self.mirth_split {
+                self.mirth_split = true;
+                return None;
+            }
+
+            self.last_split = s;
         }
         Some(action)
     }
 
-    fn handle_event(
-        cutscenes: &mut Delayed,
-        last_split: &mut Split,
-        event: &Event,
-    ) -> Option<Action> {
+    fn handle_event(&mut self, event: &Event) -> Option<Action> {
         log!("Event {:?}", event);
 
-        let action = Self::convert_event(cutscenes, event)?;
+        let action = self.convert_event(event)?;
         log!("Possible Action: {:?}", action);
 
-        let action = Self::filter_action(last_split, action)?;
+        let action = self.filter_action(action)?;
         log!("Likely Action: {:?}", action);
 
         Some(action)
