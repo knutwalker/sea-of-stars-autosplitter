@@ -7,7 +7,7 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-asr = { git = "https://github.com/LiveSplit/asr", features = [
+asr = { git = "https://github.com/LiveSplit/asr", rev = "1acef2e8583417ff5b566dd583000daeb1a970a5", features = [
     # "alloc", # Working with allocations.
     "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
     # "flags", # Working with bit flags.

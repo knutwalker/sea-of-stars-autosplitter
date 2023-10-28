@@ -3,6 +3,7 @@
 use crate::data::{Data, GameState};
 use asr::{
     future::next_tick,
+    settings::Gui,
     timer::{self, TimerState},
     watcher::Watcher,
     Address64, Process,
@@ -56,7 +57,7 @@ asr::panic_handler!();
 
 async fn main() {
     asr::set_tick_rate(60.0);
-    let settings = Settings::register();
+    let mut settings = Settings::register();
     log!("Loaded settings: {settings:?}");
 
     loop {
@@ -68,6 +69,7 @@ async fn main() {
                 let mut progress = Progress::new();
 
                 loop {
+                    settings.update();
                     match timer::state() {
                         TimerState::NotRunning => {
                             let start = progress.start(&data);
@@ -86,7 +88,7 @@ async fn main() {
     }
 }
 
-#[derive(Debug, asr::user_settings::Settings)]
+#[derive(Debug, Gui)]
 pub struct Settings {
     /// Stop game timer during loads (load remover)
     #[default = true]
