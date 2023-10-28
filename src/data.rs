@@ -1,7 +1,8 @@
 use asr::{
-    game_engine::unity::il2cpp::{Game, Module, Version},
+    game_engine::unity::il2cpp::{Module, Version},
     Process,
 };
+use csharp_mem::Game;
 
 use self::{
     combat::{Combat, Encounter},
@@ -468,10 +469,7 @@ impl<'a> Data<'a> {
 }
 
 mod title_screen {
-    use asr::{
-        game_engine::unity::il2cpp::{Class2, Game},
-        Pointer,
-    };
+    use csharp_mem::{Class as Class2, Game, Pointer};
 
     #[derive(Debug, PartialEq, Eq)]
     pub enum GameStart {
@@ -522,12 +520,8 @@ mod title_screen {
 }
 
 mod combat {
-    use asr::{
-        arrayvec::ArrayVec,
-        game_engine::unity::il2cpp::{Class2, Game},
-        Pointer,
-    };
-    use csharp_mem::{CSString, List};
+    use asr::arrayvec::ArrayVec;
+    use csharp_mem::{CSString, Class as Class2, Game, List, Pointer};
 
     pub struct Combat {
         manager: CombatManagerBinding,
@@ -602,11 +596,10 @@ mod combat {
                 game: &Game<'_>,
             ) -> Option<ArrayVec<super::Enemy, 6>> {
                 let encounter = this.current_encounter(game)?;
-                let actors = encounter.enemy_actors.resolve(game);
+                let actors = encounter.enemy_actors.iter(game);
 
                 let enemies = match actors {
                     Some(actors) => actors
-                        .iter(game)
                         .filter_map(|o| this.enemy.enemy(game, o))
                         .map(|e| match e {
                             super::Enemy::DwellerOfStrife1 if !encounter.boss => {
@@ -630,10 +623,7 @@ mod combat {
 
         pub fn current_encounter(&mut self, game: &Game<'_>) -> Option<Encounter> {
             let manager = self.manager.read(game)?;
-            let encounter = manager
-                .encounters
-                .resolve(game)
-                .and_then(|o| o.get(game, 0))?;
+            let encounter = manager.encounters.get(game, 0)?;
             let encounter = self.encounter.read_pointer(game, encounter)?;
             Some(encounter)
         }
@@ -647,21 +637,15 @@ mod combat {
         ) -> Option<super::Enemy> {
             let actor = self.actor.read_pointer(game, eca)?;
             let char_data = self.char_data.read_pointer(game, actor.data)?;
-            let e_guid = char_data.guid.resolve(game)?;
-            let enemy = super::Enemy::resolve(e_guid.chars(game));
-
-            enemy
+            let enemy = char_data.guid.chars(game)?;
+            super::Enemy::resolve(enemy)
         }
     }
 }
 
 mod progress {
-    use asr::{
-        game_engine::unity::il2cpp::{Class2, Game},
-        MemReader, Pointer,
-    };
     use bytemuck::AnyBitPattern;
-    use csharp_mem::CSString;
+    use csharp_mem::{CSString, Class as Class2, Game, MemReader, Pointer};
 
     #[derive(Class2, Debug)]
     struct LevelManager {
@@ -708,8 +692,8 @@ mod progress {
             let level = level
                 .current_level
                 .guid
-                .resolve(game)
-                .and_then(|o| super::Level::resolve(o.chars(game)));
+                .chars(game)
+                .and_then(super::Level::resolve);
             Some(CurrentProgression {
                 is_loading,
                 is_in_cutscene,
@@ -737,14 +721,9 @@ mod progress {
 }
 
 mod inventory {
-    use asr::{
-        game_engine::unity::il2cpp::{Class2, Game},
-        watcher::Watcher,
-        Pointer,
-    };
+    use asr::watcher::Watcher;
     use bytemuck::AnyBitPattern;
-
-    use csharp_mem::{CSString, Map};
+    use csharp_mem::{CSString, Class as Class2, Game, Map, Pointer};
 
     #[derive(Class2, Debug)]
     struct InventoryManager {
@@ -801,10 +780,12 @@ mod inventory {
             ) -> Option<impl Iterator<Item = Change<super::KeyItem>> + 'a> {
                 let manager = this.manager.read(game)?;
                 let owned = this.quantity.read_pointer(game, manager.owned_items)?;
-                let owned = owned.dictionary.resolve(game)?;
+                let owned_dict = owned.dictionary.read(game)?;
 
                 let first = this.number_of_owned_items.pair.is_none();
-                let now_owned = this.number_of_owned_items.update_infallible(owned.size());
+                let now_owned = this
+                    .number_of_owned_items
+                    .update_infallible(owned_dict.size());
 
                 if !first && !now_owned.changed() {
                     return None;
@@ -813,10 +794,16 @@ mod inventory {
                 this.generation += 1;
                 let generation = this.generation;
 
-                for item in owned.iter(game).filter_map(move |(item, _amount)| {
-                    let item = item.guid.resolve(game)?;
-                    super::KeyItem::resolve(item.chars(game))
-                }) {
+                for item in owned
+                    .dictionary
+                    .iter(game)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(move |(item, _amount)| {
+                        let item = item.guid.chars(game)?;
+                        super::KeyItem::resolve(item)
+                    })
+                {
                     match this.owned_key_items[item as usize] {
                         (u32::MAX, u32::MAX) => {
                             this.owned_key_items[item as usize] = (generation, generation);

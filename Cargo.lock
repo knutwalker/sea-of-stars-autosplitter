@@ -11,38 +11,14 @@ checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 [[package]]
 name = "asr"
 version = "0.1.0"
-source = "git+https://github.com/knutwalker/asr?branch=new-derive#9e0044c948041b29819eeb0f300dcd801d9ae153"
-dependencies = [
- "arrayvec",
- "asr-derive 0.1.0 (git+https://github.com/knutwalker/asr?branch=new-derive)",
- "bytemuck",
- "memchr",
- "time",
- "wasi",
-]
-
-[[package]]
-name = "asr"
-version = "0.1.0"
 source = "git+https://github.com/knutwalker/asr?branch=sos-as#ee50560890e39756cf9df12da0c240f69a58be50"
 dependencies = [
  "arrayvec",
- "asr-derive 0.1.0 (git+https://github.com/knutwalker/asr?branch=sos-as)",
+ "asr-derive",
  "bytemuck",
  "memchr",
  "time",
  "wasi",
-]
-
-[[package]]
-name = "asr-derive"
-version = "0.1.0"
-source = "git+https://github.com/knutwalker/asr?branch=new-derive#9e0044c948041b29819eeb0f300dcd801d9ae153"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -78,9 +54,9 @@ dependencies = [
 [[package]]
 name = "csharp-mem"
 version = "0.1.0"
-source = "git+https://github.com/knutwalker/csharp-mem#3d7e593d72453c3a8f177623037d5d95de83706e"
+source = "git+https://github.com/knutwalker/csharp-mem#70ab55e39861632431ccbf61d972c7a284720aea"
 dependencies = [
- "asr 0.1.0 (git+https://github.com/knutwalker/asr?branch=sos-as)",
+ "asr",
  "bytemuck",
  "csharp-mem-derive",
 ]
@@ -88,7 +64,7 @@ dependencies = [
 [[package]]
 name = "csharp-mem-derive"
 version = "0.1.0"
-source = "git+https://github.com/knutwalker/csharp-mem#3d7e593d72453c3a8f177623037d5d95de83706e"
+source = "git+https://github.com/knutwalker/csharp-mem#70ab55e39861632431ccbf61d972c7a284720aea"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -150,7 +126,7 @@ dependencies = [
 name = "sea-of-stars-autosplitter"
 version = "0.1.0"
 dependencies = [
- "asr 0.1.0 (git+https://github.com/knutwalker/asr?branch=new-derive)",
+ "asr",
  "bytemuck",
  "csharp-mem",
  "pin-project-lite",

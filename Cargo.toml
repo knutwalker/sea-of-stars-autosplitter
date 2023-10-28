@@ -7,7 +7,7 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-asr = { git = "https://github.com/knutwalker/asr", branch = "new-derive", features = [
+asr = { git = "https://github.com/knutwalker/asr", branch = "sos-as", features = [
     # "alloc",  # Working with allocations.
     "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
     # "flags", # Working with bit flags.
@@ -22,7 +22,7 @@ asr = { git = "https://github.com/knutwalker/asr", branch = "new-derive", featur
     # "ps1", # Accessing PlayStation emulators.
 ] }
 bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
-csharp-mem = { git = "https://github.com/knutwalker/csharp-mem" }
+csharp-mem = { git = "https://github.com/knutwalker/csharp-mem", features = ["il2cpp"] }
 pin-project-lite = "0.2.13"
 
 [lib]
