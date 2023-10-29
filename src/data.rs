@@ -163,7 +163,7 @@ impl TitleScreen {
     fn get(&self, process: &Process) -> Option<TitleSequenceManager> {
         let parent = self.bind.class().get_parent(process, &self.module)?;
         let static_table = parent.get_static_table(process, &self.module)?;
-        let instance_offset = parent.get_field(process, &self.module, "instance")?;
+        let instance_offset = parent.get_field_offset(process, &self.module, "instance")?;
         let location = static_table + instance_offset;
 
         let addr = process.read::<Address64>(location).ok()?;
