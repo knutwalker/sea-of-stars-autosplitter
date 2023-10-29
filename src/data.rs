@@ -5,7 +5,7 @@ use asr::{
 use csharp_mem::Game;
 
 use self::{
-    combat::{Combat, Encounter},
+    combat::Combat,
     inventory::Inventory,
     progress::{CurrentProgression, Progression},
     title_screen::TitleScreen,
@@ -430,19 +430,19 @@ pub struct Data<'a> {
 }
 
 impl Data<'_> {
-    pub fn game_start(&mut self) -> Option<GameStart> {
+    pub fn game_start(&self) -> Option<GameStart> {
         self.title_screen.game_start(&self.game)
     }
 
-    pub fn current_progression(&mut self) -> Option<CurrentProgression> {
+    pub fn current_progression(&self) -> Option<CurrentProgression> {
         self.progression.current_progression(&self.game)
     }
 
-    pub fn encounter(&mut self) -> Option<Encounter> {
-        self.combat.current_encounter(&self.game)
+    pub fn encounter_done(&self) -> Option<bool> {
+        self.combat.current_encounter_done(&self.game)
     }
 
-    pub fn current_enemies(&mut self) -> CurrentEncounter {
+    pub fn current_enemies(&self) -> CurrentEncounter {
         self.combat.current_enemy_encounter(&self.game)
     }
 
@@ -469,72 +469,62 @@ impl<'a> Data<'a> {
 }
 
 mod title_screen {
-    use csharp_mem::{Class as Class2, Game, Pointer};
+    use asr::game_engine::unity::il2cpp::UnityPointer;
+    use bytemuck::CheckedBitPattern;
+    use csharp_mem::Game;
 
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, CheckedBitPattern)]
+    #[repr(u8)]
+    #[allow(dead_code)]
     pub enum GameStart {
-        NotStarted,
-        JustStarted,
+        NotStarted = 0,
+        JustStarted = 1,
     }
 
     pub struct TitleScreen {
-        manager: TitleSequenceManagerBinding,
-        char_select: CharacterSelectionScreenBinding,
-    }
-
-    #[derive(Class2, Debug)]
-    struct TitleSequenceManager {
-        #[singleton]
-        #[rename = "instance"]
-        _instance: Pointer<Self>,
-        #[rename = "characterSelectionScreen"]
-        char_selection_screen: Pointer<CharacterSelectionScreen>,
-    }
-
-    #[derive(Class2, Debug)]
-    struct CharacterSelectionScreen {
-        #[rename = "characterSelected"]
-        char_selected: bool,
+        character_selected: UnityPointer<3>,
     }
 
     impl TitleScreen {
         pub fn new() -> Self {
-            Self {
-                manager: TitleSequenceManager::bind(),
-                char_select: CharacterSelectionScreen::bind(),
-            }
+            let character_selected = UnityPointer::new(
+                "TitleSequenceManager",
+                &["instance", "characterSelectionScreen", "characterSelected"],
+            );
+            Self { character_selected }
         }
 
-        pub fn game_start(&mut self, game: &Game<'_>) -> Option<GameStart> {
-            let manager = self.manager.read(game)?;
-            let char_select = self
-                .char_select
-                .read_pointer(game, manager.char_selection_screen)?;
-            Some(if char_select.char_selected {
-                GameStart::JustStarted
-            } else {
-                GameStart::NotStarted
-            })
+        pub fn game_start(&self, game: &Game<'_>) -> Option<GameStart> {
+            self.character_selected
+                .deref(game.process(), game.module(), game.image())
+                .ok()
         }
     }
 }
 
 mod combat {
-    use asr::arrayvec::ArrayVec;
-    use csharp_mem::{CSString, Class as Class2, Game, List, Pointer};
+    use asr::{arrayvec::ArrayVec, game_engine::unity::il2cpp::UnityPointer, msg};
+    use csharp_mem::{CSString, Game, List, Pointer};
 
     pub struct Combat {
-        manager: CombatManagerBinding,
-        encounter: EncounterBinding,
-        enemy: EnemyCombat,
+        running_encounters: UnityPointer<2>,
+        encounter_done: UnityPointer<1>,
+        encounter_boss: UnityPointer<1>,
+        enemy_actors: UnityPointer<1>,
+        enemy_data: UnityPointer<2>,
     }
 
     impl Combat {
         pub fn new() -> Self {
             Self {
-                manager: CombatManager::bind(),
-                encounter: Encounter::bind(),
-                enemy: EnemyCombat::new(),
+                running_encounters: UnityPointer::new(
+                    "CombatManager",
+                    &["instance", "runningEncounters"],
+                ),
+                encounter_done: UnityPointer::new("Encounter", &["encounterDone"]),
+                encounter_boss: UnityPointer::new("Encounter", &["bossEncounter"]),
+                enemy_actors: UnityPointer::new("Encounter", &["enemyActors"]),
+                enemy_data: UnityPointer::new("EnemyCombatActor", &["enemyData", "guid"]),
             }
         }
     }
@@ -545,155 +535,127 @@ mod combat {
         InEncounter(ArrayVec<super::Enemy, 6>),
     }
 
-    struct EnemyCombat {
-        actor: EnemyCombatActorBinding,
-        char_data: EnemyCharacterDataBinding,
-    }
-
-    impl EnemyCombat {
-        fn new() -> Self {
-            Self {
-                actor: EnemyCombatActor::bind(),
-                char_data: EnemyCharacterData::bind(),
-            }
-        }
-    }
-
-    #[derive(Class2)]
-    struct CombatManager {
-        #[singleton]
-        #[rename = "instance"]
-        _instance: Pointer<Self>,
-        #[rename = "runningEncounters"]
-        encounters: Pointer<List<Pointer<Encounter>>>,
-    }
-
-    #[derive(Class2, Debug)]
-    pub struct Encounter {
-        #[rename = "encounterDone"]
-        pub done: bool,
-        #[rename = "bossEncounter"]
-        pub boss: bool,
-        #[rename = "enemyActors"]
-        enemy_actors: Pointer<List<Pointer<EnemyCombatActor>>>,
-    }
-
-    #[derive(Class2, Debug)]
-    struct EnemyCombatActor {
-        #[rename = "enemyData"]
-        data: Pointer<EnemyCharacterData>,
-    }
-
-    #[derive(Class2, Debug)]
-    struct EnemyCharacterData {
-        guid: Pointer<CSString>,
-    }
-
     impl Combat {
-        pub fn current_enemy_encounter(&mut self, game: &Game<'_>) -> CurrentEncounter {
-            fn current_enemies(
-                this: &mut Combat,
-                game: &Game<'_>,
-            ) -> Option<ArrayVec<super::Enemy, 6>> {
-                let encounter = this.current_encounter(game)?;
-                let actors = encounter.enemy_actors.iter(game);
-
-                let enemies = match actors {
-                    Some(actors) => actors
-                        .filter_map(|o| this.enemy.enemy(game, o))
-                        .map(|e| match e {
-                            super::Enemy::DwellerOfStrife1 if !encounter.boss => {
-                                super::Enemy::DwellerOfStrife2
-                            }
-                            e => e,
-                        })
-                        .take(6)
-                        .collect(),
-                    None => ArrayVec::new(),
-                };
-
-                Some(enemies)
-            }
-
-            match current_enemies(self, game) {
+        pub fn current_enemy_encounter(&self, game: &Game<'_>) -> CurrentEncounter {
+            match self.current_encounter_enemies(game) {
                 Some(enemies) => CurrentEncounter::InEncounter(enemies),
                 None => CurrentEncounter::NotInEncounter,
             }
         }
 
-        pub fn current_encounter(&mut self, game: &Game<'_>) -> Option<Encounter> {
-            let manager = self.manager.read(game)?;
-            let encounter = manager.encounters.get(game, 0)?;
-            let encounter = self.encounter.read_pointer(game, encounter)?;
-            Some(encounter)
+        pub fn current_encounter_done(&self, game: &Game<'_>) -> Option<bool> {
+            self.encounter_done
+                .deref_from(
+                    game.process(),
+                    game.module(),
+                    game.image(),
+                    self.current_encounter(game)?,
+                )
+                .ok()
         }
-    }
 
-    impl EnemyCombat {
-        fn enemy(
-            &mut self,
-            game: &Game<'_>,
-            eca: Pointer<EnemyCombatActor>,
-        ) -> Option<super::Enemy> {
-            let actor = self.actor.read_pointer(game, eca)?;
-            let char_data = self.char_data.read_pointer(game, actor.data)?;
-            let enemy = char_data.guid.chars(game)?;
-            super::Enemy::resolve(enemy)
+        fn current_encounter(&self, game: &Game<'_>) -> Option<Pointer<()>> {
+            self.running_encounters
+                .deref::<Pointer<List<Pointer<()>>>>(game.process(), game.module(), game.image())
+                .ok()?
+                .get(game, 0)
+        }
+
+        fn current_encounter_enemies(&self, game: &Game<'_>) -> Option<ArrayVec<super::Enemy, 6>> {
+            let encounter = self.current_encounter(game)?;
+            let actors = self
+                .enemy_actors
+                .deref_from::<Pointer<List<Pointer<()>>>>(
+                    game.process(),
+                    game.module(),
+                    game.image(),
+                    encounter,
+                )
+                .ok();
+
+            let enemies = actors
+                .into_iter()
+                .flat_map(|a| a.iter(game))
+                .flatten()
+                .filter_map(|o| self.resolve_enemy(game, o))
+                .map(|e| match e {
+                    super::Enemy::DwellerOfStrife1 => {
+                        if self.encounter_is_boss(game, encounter) {
+                            super::Enemy::DwellerOfStrife1
+                        } else {
+                            super::Enemy::DwellerOfStrife2
+                        }
+                    }
+                    e => e,
+                })
+                .take(6)
+                .collect();
+
+            Some(enemies)
+        }
+
+        fn encounter_is_boss(&self, game: &Game<'_>, encounter: Pointer<()>) -> bool {
+            self.encounter_boss
+                .deref_from(game.process(), game.module(), game.image(), encounter)
+                .unwrap_or(false)
+        }
+
+        fn resolve_enemy(&self, game: &Game<'_>, enemy: Pointer<()>) -> Option<super::Enemy> {
+            self.enemy_data
+                .deref_from::<Pointer<CSString>>(game.process(), game.module(), game.image(), enemy)
+                .ok()
+                .and_then(|o| o.chars(game))
+                .and_then(super::Enemy::resolve)
         }
     }
 }
 
 mod progress {
+    use asr::game_engine::unity::il2cpp::UnityPointer;
     use bytemuck::AnyBitPattern;
-    use csharp_mem::{CSString, Class as Class2, Game, MemReader, Pointer};
-
-    #[derive(Class2, Debug)]
-    struct LevelManager {
-        #[singleton]
-        #[rename = "instance"]
-        _instance: Pointer<Self>,
-
-        #[rename = "loadingLevel"]
-        is_loading: bool,
-
-        #[rename = "currentLevel"]
-        current_level: LevelReference,
-    }
+    use csharp_mem::{CSString, Game, Pointer};
 
     #[derive(Copy, Clone, Debug, AnyBitPattern)]
     struct LevelReference {
         guid: Pointer<CSString>,
     }
 
-    #[derive(Class2, Debug)]
-    struct CutsceneManager {
-        #[singleton]
-        #[rename = "instance"]
-        _instance: Pointer<Self>,
-    }
-
     pub struct Progression {
-        level_manager: LevelManagerBinding,
-        cutscene_manager: CutsceneManagerBinding,
+        is_loading: UnityPointer<2>,
+        current_level: UnityPointer<2>,
+        is_in_cutscene: UnityPointer<2>,
     }
 
     impl Progression {
         pub fn new() -> Self {
+            let is_loading = UnityPointer::new("LevelManager", &["instance", "loadingLevel"]);
+            let current_level = UnityPointer::new("LevelManager", &["instance", "currentLevel"]);
+            let is_in_cutscene = UnityPointer::new(
+                "CutsceneManager",
+                &["instance", "<IsInCutscene>k__BackingField"],
+            );
+
             Self {
-                level_manager: LevelManager::bind(),
-                cutscene_manager: CutsceneManager::bind(),
+                is_loading,
+                current_level,
+                is_in_cutscene,
             }
         }
 
-        pub fn current_progression(&mut self, game: &Game<'_>) -> Option<CurrentProgression> {
-            let level = self.level_manager.read(game)?;
-            let is_loading = level.is_loading;
+        pub fn current_progression(&self, game: &Game<'_>) -> Option<CurrentProgression> {
             let is_in_cutscene = self.is_in_cutscene(game);
-            let level = level
+            let is_loading = self
+                .is_loading
+                .deref(game.process(), game.module(), game.image())
+                .ok()
+                .unwrap_or(false);
+            let level = self
                 .current_level
-                .guid
-                .chars(game)
+                .deref::<LevelReference>(game.process(), game.module(), game.image())
+                .ok()
+                .and_then(|o| o.guid.chars(game))
                 .and_then(super::Level::resolve);
+
             Some(CurrentProgression {
                 is_loading,
                 is_in_cutscene,
@@ -701,14 +663,11 @@ mod progress {
             })
         }
 
-        pub fn is_in_cutscene(&mut self, game: &Game<'_>) -> bool {
-            fn inner(this: &mut Progression, game: &Game<'_>) -> Option<bool> {
-                let cutscene_manager = this.cutscene_manager.read(game)?;
-                let is_in_cutscene = game.read(cutscene_manager._instance.address() + 0x30)?;
-                Some(is_in_cutscene)
-            }
-
-            inner(self, game).unwrap_or(false)
+        pub fn is_in_cutscene(&self, game: &Game<'_>) -> bool {
+            self.is_in_cutscene
+                .deref(game.process(), game.module(), game.image())
+                .ok()
+                .unwrap_or(false)
         }
     }
 
@@ -721,29 +680,16 @@ mod progress {
 }
 
 mod inventory {
-    use asr::watcher::Watcher;
+    use asr::{game_engine::unity::il2cpp::UnityPointer, watcher::Watcher};
     use bytemuck::AnyBitPattern;
-    use csharp_mem::{CSString, Class as Class2, Game, Map, Pointer};
-
-    #[derive(Class2, Debug)]
-    struct InventoryManager {
-        #[singleton]
-        #[rename = "instance"]
-        _instance: Pointer<Self>,
-
-        #[rename = "ownedInventoryItems"]
-        owned_items: Pointer<QuantityByInventoryItemReference>,
-    }
+    use csharp_mem::{CSString, Game, Map, Pointer};
 
     #[derive(Debug, Copy, Clone, AnyBitPattern)]
     struct InventoryItemReference {
         guid: Pointer<CSString>,
     }
 
-    #[derive(Class2, Debug)]
-    struct QuantityByInventoryItemReference {
-        dictionary: Pointer<Map<InventoryItemReference, u32>>,
-    }
+    type InventoryItems = Map<InventoryItemReference, u32>;
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub enum Change<T> {
@@ -752,8 +698,7 @@ mod inventory {
     }
 
     pub struct Inventory {
-        quantity: QuantityByInventoryItemReferenceBinding,
-        manager: InventoryManagerBinding,
+        owned_items: UnityPointer<3>,
         number_of_owned_items: Watcher<u32>,
         owned_key_items: [(u32, u32); 4],
         generation: u32,
@@ -761,9 +706,12 @@ mod inventory {
 
     impl Inventory {
         pub fn new() -> Self {
+            let owned_items = UnityPointer::new(
+                "InventoryManager",
+                &["instance", "ownedInventoryItems", "dictionary"],
+            );
             Self {
-                quantity: QuantityByInventoryItemReference::bind(),
-                manager: InventoryManager::bind(),
+                owned_items,
                 number_of_owned_items: Watcher::new(),
                 owned_key_items: [(u32::MAX, u32::MAX); 4], // capacity is number of KeyItem variants
                 generation: 0,
@@ -778,9 +726,10 @@ mod inventory {
                 this: &'a mut Inventory,
                 game: &'a Game<'_>,
             ) -> Option<impl Iterator<Item = Change<super::KeyItem>> + 'a> {
-                let manager = this.manager.read(game)?;
-                let owned = this.quantity.read_pointer(game, manager.owned_items)?;
-                let owned_dict = owned.dictionary.read(game)?;
+                let owned_dict = this
+                    .owned_items
+                    .deref::<InventoryItems>(game.process(), game.module(), game.image())
+                    .ok()?;
 
                 let first = this.number_of_owned_items.pair.is_none();
                 let now_owned = this
@@ -794,15 +743,21 @@ mod inventory {
                 this.generation += 1;
                 let generation = this.generation;
 
-                for item in owned
-                    .dictionary
-                    .iter(game)
-                    .into_iter()
-                    .flatten()
-                    .filter_map(move |(item, _amount)| {
-                        let item = item.guid.chars(game)?;
-                        super::KeyItem::resolve(item)
-                    })
+                let owned = this
+                    .owned_items
+                    .deref_offsets(game.process(), game.module(), game.image())
+                    .ok()?;
+                let owned = bytemuck::cast::<_, Pointer<InventoryItems>>(owned.value());
+
+                for item in
+                    owned
+                        .iter(game)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(move |(item, _amount)| {
+                            let item = item.guid.chars(game)?;
+                            super::KeyItem::resolve(item)
+                        })
                 {
                     match this.owned_key_items[item as usize] {
                         (u32::MAX, u32::MAX) => {

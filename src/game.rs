@@ -111,45 +111,44 @@ impl Game {
     }
 
     fn encounter_changes(&mut self, data: &mut Data<'_>) {
-        let in_encounter = self.encounter.is_some();
-        if in_encounter {
-            match data.encounter() {
-                Some(enc) if enc.done => {
-                    let Some(start) = self.encounter.take() else {
-                        unreachable!();
-                    };
+        match (&mut self.encounter, data.encounter_done()) {
+            // we are in an encounter, and now it's done
+            (start @ Some(_), Some(true)) => {
+                let Some(start) = start.take() else {
+                    unreachable!();
+                };
 
-                    let event = if start.len() == 1 {
-                        Event::EncounterEnd(start[0])
-                    } else {
-                        Event::EncountersEnd(start)
-                    };
-                    self.events.push(event);
-                }
-                Some(_) => {}
-                None => {
-                    self.encounter = None;
-                }
+                let event = if start.len() == 1 {
+                    Event::EncounterEnd(start[0])
+                } else {
+                    Event::EncountersEnd(start)
+                };
+                self.events.push(event);
             }
-        } else {
-            match data.encounter() {
-                Some(enc) if !enc.done => {
-                    let CurrentEncounter::InEncounter(mut enemies) = data.current_enemies() else {
-                        log!("encounter without enemies");
-                        unreachable!();
-                    };
-                    enemies.sort_unstable();
-                    self.encounter = Some(enemies.clone());
+            // we aren't in an encounter, and now we are
+            (None, Some(false)) => {
+                let CurrentEncounter::InEncounter(mut enemies) = data.current_enemies() else {
+                    log!("encounter without enemies");
+                    unreachable!();
+                };
+                enemies.sort_unstable();
+                self.encounter = Some(enemies.clone());
 
-                    let event = if enemies.len() == 1 {
-                        Event::EncounterStart(enemies[0])
-                    } else {
-                        Event::EncountersStart(enemies)
-                    };
-                    self.events.push(event);
-                }
-                _ => {}
+                let event = if enemies.len() == 1 {
+                    Event::EncounterStart(enemies[0])
+                } else {
+                    Event::EncountersStart(enemies)
+                };
+                self.events.push(event);
             }
+            // we thought we are in an encounter, but we're not
+            (enc @ Some(_), None) => {
+                *enc = None;
+            }
+            // we are in an encounter and it's still going
+            (Some(_), Some(false)) => {}
+            // we aren't in an encounter and there isn't one or it just finished
+            (None, None | Some(true)) => {}
         }
     }
 }

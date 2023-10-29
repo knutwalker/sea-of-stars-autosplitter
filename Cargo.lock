@@ -11,7 +11,7 @@ checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
 [[package]]
 name = "asr"
 version = "0.1.0"
-source = "git+https://github.com/knutwalker/asr?branch=sos-as#ee50560890e39756cf9df12da0c240f69a58be50"
+source = "git+https://github.com/knutwalker/asr?branch=sos-as#d1beaee77fbae0787272b6322b24c710138cce0c"
 dependencies = [
  "arrayvec",
  "asr-derive",
@@ -24,7 +24,7 @@ dependencies = [
 [[package]]
 name = "asr-derive"
 version = "0.1.0"
-source = "git+https://github.com/knutwalker/asr?branch=sos-as#ee50560890e39756cf9df12da0c240f69a58be50"
+source = "git+https://github.com/knutwalker/asr?branch=sos-as#d1beaee77fbae0787272b6322b24c710138cce0c"
 dependencies = [
  "heck",
  "quote",
