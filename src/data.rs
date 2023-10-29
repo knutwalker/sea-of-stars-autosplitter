@@ -1,8 +1,9 @@
+use crate::memory::Game;
+
 use asr::{
     game_engine::unity::il2cpp::{Module, Version},
     Process,
 };
-use csharp_mem::Game;
 
 use self::{
     combat::Combat,
@@ -469,9 +470,9 @@ impl<'a> Data<'a> {
 }
 
 mod title_screen {
+    use crate::memory::Game;
     use asr::game_engine::unity::il2cpp::UnityPointer;
     use bytemuck::CheckedBitPattern;
-    use csharp_mem::Game;
 
     #[derive(Copy, Clone, Debug, PartialEq, Eq, CheckedBitPattern)]
     #[repr(u8)]
@@ -503,8 +504,8 @@ mod title_screen {
 }
 
 mod combat {
-    use asr::{arrayvec::ArrayVec, game_engine::unity::il2cpp::UnityPointer, msg};
-    use csharp_mem::{CSString, Game, List, Pointer};
+    use crate::memory::{CSString, Game, List, Pointer};
+    use asr::{arrayvec::ArrayVec, game_engine::unity::il2cpp::UnityPointer};
 
     pub struct Combat {
         running_encounters: UnityPointer<2>,
@@ -611,9 +612,9 @@ mod combat {
 }
 
 mod progress {
+    use crate::memory::{CSString, Game, Pointer};
     use asr::game_engine::unity::il2cpp::UnityPointer;
     use bytemuck::AnyBitPattern;
-    use csharp_mem::{CSString, Game, Pointer};
 
     #[derive(Copy, Clone, Debug, AnyBitPattern)]
     struct LevelReference {
@@ -680,9 +681,9 @@ mod progress {
 }
 
 mod inventory {
+    use crate::memory::{CSString, Game, Map, Pointer};
     use asr::{game_engine::unity::il2cpp::UnityPointer, watcher::Watcher};
     use bytemuck::AnyBitPattern;
-    use csharp_mem::{CSString, Game, Map, Pointer};
 
     #[derive(Debug, Copy, Clone, AnyBitPattern)]
     struct InventoryItemReference {

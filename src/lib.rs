@@ -25,6 +25,7 @@ macro_rules! log {
 
 mod data;
 mod game;
+mod memory;
 mod splits;
 
 asr::async_main!(stable);

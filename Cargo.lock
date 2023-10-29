@@ -52,26 +52,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "csharp-mem"
-version = "0.1.0"
-source = "git+https://github.com/knutwalker/csharp-mem#70ab55e39861632431ccbf61d972c7a284720aea"
-dependencies = [
- "asr",
- "bytemuck",
- "csharp-mem-derive",
-]
-
-[[package]]
-name = "csharp-mem-derive"
-version = "0.1.0"
-source = "git+https://github.com/knutwalker/csharp-mem#70ab55e39861632431ccbf61d972c7a284720aea"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "deranged"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -128,7 +108,6 @@ version = "0.1.0"
 dependencies = [
  "asr",
  "bytemuck",
- "csharp-mem",
  "pin-project-lite",
 ]
 

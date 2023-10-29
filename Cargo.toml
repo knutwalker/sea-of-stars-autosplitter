@@ -22,7 +22,6 @@ asr = { git = "https://github.com/knutwalker/asr", branch = "sos-as", features =
     # "ps1", # Accessing PlayStation emulators.
 ] }
 bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
-csharp-mem = { git = "https://github.com/knutwalker/csharp-mem", features = ["il2cpp"] }
 pin-project-lite = "0.2.13"
 
 [lib]
