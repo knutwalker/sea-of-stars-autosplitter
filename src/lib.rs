@@ -1,6 +1,6 @@
 #![no_std]
 
-use crate::data::{Data, GameState};
+use crate::data::{Data, GameStart};
 use asr::{
     future::next_tick,
     settings::Gui,
@@ -67,17 +67,28 @@ async fn main() {
             .until_closes(async {
                 let data = Data::new(&process).await;
                 let mut progress = Progress::new();
+                let mut game_start = GameStart::Unknown;
 
                 loop {
                     settings.update();
                     match timer::state() {
                         TimerState::NotRunning => {
-                            let start = progress.start(&data);
+                            let (new_state, start) = progress.start(&data, game_start);
+                            if new_state != game_start {
+                                log!("Game state changed from {game_start:?} to {new_state:?}");
+                                game_start = new_state;
+                            }
                             act(start, &settings);
                         }
                         TimerState::Running => {
+                            game_start = GameStart::Unknown;
+
                             let action = progress.act(&data);
                             act(action, &settings);
+                        }
+                        TimerState::Ended => {
+                            log!("Timer ended");
+                            game_start = GameStart::Unknown;
                         }
                         _ => {}
                     }
@@ -94,9 +105,13 @@ pub struct Settings {
     #[default = true]
     remove_loads: bool,
 
-    /// Start splitting on character select
-    #[default = true]
+    /// Start after selecting the character
+    #[default = false]
     start: bool,
+
+    /// Start after confirming the relics
+    #[default = true]
+    relic_start: bool,
 
     /// Split on finished boss encounters
     #[default = true]
@@ -105,7 +120,8 @@ pub struct Settings {
 
 #[derive(Debug)]
 enum Action {
-    Start,
+    StartCharacter,
+    StartRelic,
     Split,
     Pause,
     Resume,
@@ -124,8 +140,14 @@ impl Progress {
         }
     }
 
-    pub fn start(&mut self, data: &Data<'_>) -> Option<Action> {
-        matches!(data.game_start(), GameState::JustStarted).then_some(Action::Start)
+    pub fn start(&mut self, data: &Data<'_>, current: GameStart) -> (GameStart, Option<Action>) {
+        let current = data.game_start(current);
+        let action = match current {
+            GameStart::CharSelected => Some(Action::StartCharacter),
+            GameStart::JustStarted => Some(Action::StartRelic),
+            _ => None,
+        };
+        (current, action)
     }
 
     pub fn act(&mut self, data: &Data<'_>) -> Option<Action> {
@@ -165,7 +187,8 @@ impl Settings {
     fn filter(&self, action: &Action) -> bool {
         match action {
             Action::Pause | Action::Resume => self.remove_loads,
-            Action::Start => self.start,
+            Action::StartCharacter => self.start,
+            Action::StartRelic => self.relic_start,
             Action::Split => self.split,
         }
     }
@@ -175,7 +198,7 @@ fn act(action: Option<Action>, settings: &Settings) {
     if let Some(action) = action.filter(|o| settings.filter(o)) {
         log!("Decided on an action: {action:?}");
         match (action, timer::state() == TimerState::Running) {
-            (Action::Start, false) => {
+            (Action::StartCharacter | Action::StartRelic, false) => {
                 log!("Starting timer");
                 timer::start();
             }
