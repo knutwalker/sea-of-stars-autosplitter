@@ -1,9 +1,10 @@
 #![no_std]
 
-use crate::data::{Data, GameStart};
+use crate::data::{Data, GameStart, SpeedrunRelic};
 use asr::{
     future::next_tick,
     settings::Gui,
+    time::Duration,
     timer::{self, TimerState},
     watcher::Watcher,
     Address64, Process,
@@ -57,8 +58,9 @@ asr::panic_handler!();
 
 async fn main() {
     asr::set_tick_rate(60.0);
-    let mut settings = Settings::register();
+    let settings = Settings::register();
     log!("Loaded settings: {settings:?}");
+    let mut settings = LiveSettings::new(settings);
 
     loop {
         let process = Process::wait_attach("SeaOfStars.exe").await;
@@ -82,6 +84,17 @@ async fn main() {
                         }
                         TimerState::Running => {
                             game_start = GameStart::Unknown;
+
+                            match data.speedrun_time() {
+                                Some(SpeedrunRelic::Inactive) => {
+                                    settings.disable_speedrun_relic();
+                                }
+                                Some(SpeedrunRelic::Active(time)) => {
+                                    settings.enable_speedrun_relic();
+                                    act(Some(Action::SetGameTime(time)), &settings)
+                                }
+                                None => {}
+                            }
 
                             let action = progress.act(&data);
                             act(action, &settings);
@@ -116,6 +129,15 @@ pub struct Settings {
     /// Split on finished boss encounters
     #[default = true]
     split: bool,
+
+    /// Use the speedrun relic timer instead of the load remover
+    #[default = false]
+    speedrun_relic: bool,
+}
+
+struct LiveSettings {
+    settings: Settings,
+    speedrun_relic: bool,
 }
 
 #[derive(Debug)]
@@ -125,6 +147,7 @@ enum Action {
     Split,
     Pause,
     Resume,
+    SetGameTime(f64),
 }
 
 struct Progress {
@@ -183,18 +206,39 @@ impl Progress {
     }
 }
 
-impl Settings {
+impl LiveSettings {
+    fn new(settings: Settings) -> Self {
+        let speedrun_relic = settings.speedrun_relic;
+        Self {
+            settings,
+            speedrun_relic,
+        }
+    }
+
+    fn update(&mut self) {
+        self.settings.update();
+    }
+
+    fn disable_speedrun_relic(&mut self) {
+        self.speedrun_relic = false;
+    }
+
+    fn enable_speedrun_relic(&mut self) {
+        self.speedrun_relic = self.settings.speedrun_relic;
+    }
+
     fn filter(&self, action: &Action) -> bool {
         match action {
-            Action::Pause | Action::Resume => self.remove_loads,
-            Action::StartCharacter => self.start,
-            Action::StartRelic => self.relic_start,
-            Action::Split => self.split,
+            Action::Pause | Action::Resume => self.settings.remove_loads && !self.speedrun_relic,
+            Action::StartCharacter => self.settings.start,
+            Action::StartRelic => self.settings.relic_start,
+            Action::Split => self.settings.split,
+            Action::SetGameTime(_) => self.speedrun_relic,
         }
     }
 }
 
-fn act(action: Option<Action>, settings: &Settings) {
+fn act(action: Option<Action>, settings: &LiveSettings) {
     if let Some(action) = action.filter(|o| settings.filter(o)) {
         log!("Decided on an action: {action:?}");
         match (action, timer::state() == TimerState::Running) {
@@ -214,7 +258,13 @@ fn act(action: Option<Action>, settings: &Settings) {
                 log!("Resume game time");
                 timer::resume_game_time();
             }
-            _ => {}
+            (Action::SetGameTime(time), true) => {
+                let time = Duration::seconds_f64(time);
+                timer::set_game_time(time);
+            }
+
+            (Action::StartCharacter | Action::StartRelic, true) => {}
+            (Action::Split | Action::Pause | Action::Resume | Action::SetGameTime(_), false) => {}
         }
     }
 }

@@ -9,6 +9,8 @@ pub struct Data<'a> {
     combat: Singleton<CombatManagerBinding>,
     encounter: EncounterBinding,
     title_screen: TitleScreen<'a>,
+    speedrun: Singleton<SpeedrunManagerBinding>,
+    speedrun_timer: SpeedrunTimerBinding,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -19,6 +21,12 @@ pub enum GameStart {
     RelicScreen,
     JustStarted,
     Unknown,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum SpeedrunRelic {
+    Inactive,
+    Active(f64),
 }
 
 impl Data<'_> {
@@ -72,6 +80,20 @@ impl Data<'_> {
     pub fn resolve_encounter(&self, address: Address64) -> Option<Encounter> {
         self.encounter.read(self.process, address.into()).ok()
     }
+
+    pub fn speedrun_time(&self) -> Option<SpeedrunRelic> {
+        let speedrun_manager = self.speedrun.read(self.process)?;
+        if !speedrun_manager.relic_active {
+            return Some(SpeedrunRelic::Inactive);
+        }
+
+        let timer = self
+            .speedrun_timer
+            .read(self.process, speedrun_manager.timer.into())
+            .ok()?;
+
+        Some(SpeedrunRelic::Active(timer.time))
+    }
 }
 
 #[derive(Class)]
@@ -84,6 +106,14 @@ struct LevelManager {
 struct CombatManager {
     #[rename = "currentEncounter"]
     encounter: Address64,
+}
+
+#[derive(Class, Debug)]
+pub struct Encounter {
+    #[rename = "encounterDone"]
+    pub done: bool,
+    #[rename = "bossEncounter"]
+    pub boss: bool,
 }
 
 #[derive(Class)]
@@ -112,12 +142,18 @@ struct DifficultySelectionScreen {
     active: bool,
 }
 
-#[derive(Class, Debug)]
-pub struct Encounter {
-    #[rename = "encounterDone"]
-    pub done: bool,
-    #[rename = "bossEncounter"]
-    pub boss: bool,
+#[derive(Class)]
+struct SpeedrunManager {
+    #[rename = "isSpeedRunning"]
+    relic_active: bool,
+    #[rename = "speedrunTimer"]
+    timer: Address64,
+}
+
+#[derive(Class)]
+struct SpeedrunTimer {
+    #[rename = "timerInSecond"]
+    time: f64,
 }
 
 impl<'a> Data<'a> {
@@ -153,9 +189,11 @@ impl<'a> Data<'a> {
         let char_select = bind!(CharacterSelectionScreen);
         let relic_select = bind!(RelicSelectionScreen);
         let difficulty_select = bind!(DifficultySelectionScreen);
+        let speedrun = bind!(singleton SpeedrunManager);
         let level = bind!(singleton LevelManager);
         let combat = bind!(singleton CombatManager);
         let encounter = bind!(Encounter);
+        let speedrun_timer = bind!(SpeedrunTimer);
 
         let title_screen = bind!(TitleSequenceManager);
         let title_screen = TitleScreen {
@@ -173,6 +211,8 @@ impl<'a> Data<'a> {
             combat,
             encounter,
             title_screen,
+            speedrun,
+            speedrun_timer,
         }
     }
 }
@@ -194,7 +234,7 @@ macro_rules! impl_binding {
     };
 }
 
-impl_binding!(LevelManager, CombatManager,);
+impl_binding!(LevelManager, CombatManager, SpeedrunManager);
 
 struct TitleScreen<'a> {
     process: &'a Process,
