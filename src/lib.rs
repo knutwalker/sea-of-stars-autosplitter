@@ -3,9 +3,8 @@
 use crate::data::{Data, GameStart, SpeedrunRelic};
 use asr::{
     Address64, Process,
-    future::{next_tick, retry},
+    future::next_tick,
     settings::Gui,
-    time::Duration,
     timer::{self, TimerState},
     watcher::Watcher,
 };
@@ -88,8 +87,8 @@ enum Action {
     Split,
     Pause,
     Resume,
-    SetGameTime(f64),
-    SplitAndGameTime(f64),
+    SplitAndPause,
+    SplitAndResume,
 }
 
 struct NotRunning {
@@ -110,7 +109,7 @@ struct Running {
     loading: Watcher<bool>,
     encounter: Option<Address64>,
     relic_time: Watcher<f64>,
-    time: f64,
+    paused: bool,
 }
 
 impl Running {
@@ -119,7 +118,7 @@ impl Running {
             loading: Watcher::new(),
             encounter: None,
             relic_time: Watcher::new(),
-            time,
+            paused: false,
         };
         let _ = running.relic_time.update_infallible(time);
         running
@@ -179,25 +178,13 @@ struct State<'s> {
 impl State<'_> {
     async fn connect(&mut self) {
         if self.game.is_none() {
-            let process = retry(|| self.connect_process()).await;
+            let process = Process::wait_attach("SeaOfStars.exe").await;
+            log!("Attached to process");
             let data = Data::wait_new(&process).await;
             self.game = Some(Game {
                 process: Some(process),
                 data,
             });
-        }
-    }
-
-    fn connect_process(&mut self) -> Option<Process> {
-        self.tick_lrt();
-        let process = Process::attach("SeaOfStars.exe")?;
-        log!("Attached to process");
-        return Some(process);
-    }
-
-    fn tick_lrt(&mut self) {
-        if let Timer::Running(ref mut r) = self.timer {
-            r.tick_lrt();
         }
     }
 
@@ -213,38 +200,53 @@ impl State<'_> {
             .until_closes(self.main_loop(&process, &game.data))
             .await
             .unwrap_or_default();
+
+        // always resume game timer after a disconnect
+        // in case a crash happened during a load
+        if let Timer::Running(ref mut r) = self.timer {
+            r.act(self.settings, Action::Resume);
+        }
     }
 
     async fn main_loop(&mut self, process: &Process, data: &Data) {
         loop {
-            let action = self.tick(process, data);
-            act(action, self.settings);
+            self.tick(process, data);
             next_tick().await;
             self.settings.update();
         }
     }
 
-    fn tick(&mut self, process: &Process, data: &Data) -> Option<Action> {
+    fn tick(&mut self, process: &Process, data: &Data) {
         let timer_state = timer::state();
         match timer_state {
             TimerState::Running | TimerState::Paused => {
                 let running = self.timer.get_or_start();
-                return running.tick(self.settings, process, data);
+                running.tick(self.settings, process, data);
             }
             TimerState::NotRunning | TimerState::Ended => {
                 let not_running = self.timer.stop();
-                return not_running.tick(self.settings, process, data);
+                not_running.tick(self.settings, process, data);
             }
             _otherwise => {
                 log!("Unexpected timer state: {:?}", _otherwise);
-                return None;
             }
         }
     }
 }
 
 impl NotRunning {
-    fn tick(&mut self, settings: &Settings, process: &Process, data: &Data) -> Option<Action> {
+    fn tick(&mut self, settings: &Settings, process: &Process, data: &Data) {
+        if let Some(action) = self.check_start(settings, process, data) {
+            self.act(settings, action);
+        }
+    }
+
+    fn check_start(
+        &mut self,
+        settings: &Settings,
+        process: &Process,
+        data: &Data,
+    ) -> Option<Action> {
         if settings.relic_start {
             let _ = self.game_start(process, data);
             if self.game_start >= GameStart::DifficultyScreen
@@ -254,8 +256,7 @@ impl NotRunning {
                 self.start_at = time;
                 return Some(Action::StartRelic);
             }
-        }
-        if settings.start {
+        } else if settings.start {
             if let Some(GameStart::CharSelected) = self.game_start(process, data) {
                 return Some(Action::StartCharacter);
             }
@@ -277,56 +278,81 @@ impl NotRunning {
         }
         return None;
     }
+
+    fn act(&self, settings: &Settings, action: Action) {
+        match action {
+            Action::StartCharacter if settings.start => {
+                log!("Starting timer on char select");
+                timer::start();
+                timer::pause_game_time();
+            }
+            Action::StartRelic if settings.relic_start => {
+                log!("Starting timer");
+                timer::start();
+                timer::pause_game_time();
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum LoadRemoval {
+    Pause,
+    Resume,
 }
 
 impl Running {
-    fn tick_lrt(&mut self) {
-        self.time += 1.0 / TICK_RATE;
-        set_game_time(self.time);
+    fn tick(&mut self, settings: &Settings, process: &Process, data: &Data) {
+        let load_removal = self.load_removal(settings, process, data);
+        let split = settings.split && self.check_encounter_done(process, data);
+
+        let action = match (load_removal, split) {
+            (None, false) => return,
+            (None, true) => Action::Split,
+            (Some(LoadRemoval::Pause), false) => Action::Pause,
+            (Some(LoadRemoval::Pause), true) => Action::SplitAndPause,
+            (Some(LoadRemoval::Resume), false) => Action::Resume,
+            (Some(LoadRemoval::Resume), true) => Action::SplitAndResume,
+        };
+        self.act(settings, action);
     }
 
-    fn tick(&mut self, settings: &Settings, process: &Process, data: &Data) -> Option<Action> {
-        let relic_time = settings
-            .use_relic()
-            .then(|| self.check_relic_timer(process, data))
-            .flatten();
-
-        if relic_time.is_none() && settings.use_load_manager() {
+    fn load_removal(
+        &mut self,
+        settings: &Settings,
+        process: &Process,
+        data: &Data,
+    ) -> Option<LoadRemoval> {
+        if settings.remove_loads == false {
+            return None;
+        }
+        if settings.custom_load_remover == false
+            && let Some(SpeedrunRelic::Active(time)) = data.speedrun_time(process)
+        {
+            let relic_time = self.relic_time.update_infallible(time);
+            match (relic_time.increased(), self.paused) {
+                // relic and lrt are both running
+                (true, false) => {}
+                // relic and lrt are both paused
+                (false, true) => {}
+                // relic paused, lrt is running, need to pause lrt
+                (false, false) => return Some(LoadRemoval::Pause),
+                // relic is running, lrt is paused, need to unpause lrt
+                (true, true) => return Some(LoadRemoval::Resume),
+            }
+        } else if settings.custom_load_remover == true {
             match self.loading.update(data.is_loading(process)) {
-                Some(l) if l.changed_to(&false) => return Some(Action::Resume),
-                Some(l) if l.changed_to(&true) => return Some(Action::Pause),
+                Some(l) if l.changed_to(&false) => return Some(LoadRemoval::Resume),
+                Some(l) if l.changed_to(&true) => return Some(LoadRemoval::Pause),
                 _ => {}
             }
         }
 
-        let split = settings.is_split() && self.check_encounter(process, data);
-
-        match (relic_time, split) {
-            (None, false) => None,
-            (None, true) => Some(Action::Split),
-            (Some(time), false) => Some(Action::SetGameTime(time)),
-            (Some(time), true) => Some(Action::SplitAndGameTime(time)),
-        }
-    }
-
-    fn check_relic_timer(&mut self, process: &Process, data: &Data) -> Option<f64> {
-        match data.speedrun_time(process) {
-            Some(SpeedrunRelic::Active(time)) => {
-                let relic_time = self.relic_time.update_infallible(time);
-                if relic_time.increased() {
-                    let time_delta = relic_time.current - relic_time.old;
-                    self.time += time_delta;
-                    return Some(self.time);
-                    // return Some(relic_time.current);
-                }
-            }
-            Some(SpeedrunRelic::Inactive) => self.tick_lrt(),
-            None => {}
-        }
         return None;
     }
 
-    fn check_encounter(&mut self, process: &Process, data: &Data) -> bool {
+    fn check_encounter_done(&mut self, process: &Process, data: &Data) -> bool {
         match self.encounter {
             Some(enc) => match data.resolve_encounter(process, enc) {
                 Some(enc) if enc.done => {
@@ -348,6 +374,32 @@ impl Running {
             }
         };
         return false;
+    }
+
+    fn act(&mut self, settings: &Settings, action: Action) {
+        match action {
+            Action::Split if settings.split => {
+                log!("Splitting");
+                timer::split();
+            }
+            Action::Pause if settings.remove_loads => {
+                self.paused = true;
+                timer::pause_game_time();
+            }
+            Action::Resume if settings.remove_loads => {
+                self.paused = false;
+                timer::resume_game_time();
+            }
+            Action::SplitAndPause => {
+                self.act(settings, Action::Pause);
+                self.act(settings, Action::Split);
+            }
+            Action::SplitAndResume => {
+                self.act(settings, Action::Resume);
+                self.act(settings, Action::Split);
+            }
+            _otherwise => {}
+        }
     }
 }
 
@@ -371,89 +423,7 @@ async fn main() {
     };
 
     loop {
-        state.tick_lrt();
         state.connect().await;
         state.connected_loop().await;
     }
-}
-
-impl Settings {
-    fn is_lrt(&self) -> bool {
-        self.remove_loads
-    }
-
-    fn use_relic(&self) -> bool {
-        self.is_lrt() && self.custom_load_remover == false
-    }
-
-    fn use_load_manager(&self) -> bool {
-        self.is_lrt() && self.custom_load_remover == true
-    }
-
-    fn is_split(&self) -> bool {
-        self.split
-    }
-
-    fn filter(&self, action: &Action) -> bool {
-        match action {
-            Action::Pause | Action::Resume => self.use_load_manager(),
-            Action::StartCharacter => self.start,
-            Action::StartRelic => self.relic_start,
-            Action::Split => self.is_split(),
-            Action::SetGameTime(_) => self.use_relic(),
-            Action::SplitAndGameTime(_) => self.is_split() || self.use_relic(),
-        }
-    }
-}
-
-fn act(action: Option<Action>, settings: &Settings) {
-    let Some(action) = action else {
-        return;
-    };
-    match action {
-        Action::StartCharacter
-        | Action::StartRelic
-        | Action::Split
-        | Action::SplitAndGameTime(_) => {
-            log!("Possible action: {:?}", action)
-        }
-        Action::Pause | Action::Resume => {}
-        Action::SetGameTime(_) => {}
-    }
-    if settings.filter(&action) {
-        match action {
-            Action::StartCharacter => {
-                log!("Starting timer on char select");
-                timer::start();
-            }
-            Action::StartRelic => {
-                log!("Starting timer");
-                timer::start();
-                timer::pause_game_time();
-            }
-            Action::Split => {
-                log!("Splitting");
-                timer::split();
-            }
-            Action::Pause => {
-                timer::pause_game_time();
-            }
-            Action::Resume => {
-                timer::resume_game_time();
-            }
-            Action::SetGameTime(time) => {
-                set_game_time(time);
-            }
-            Action::SplitAndGameTime(time) => {
-                log!("Splitting");
-                timer::split();
-                set_game_time(time);
-            }
-        }
-    }
-}
-
-fn set_game_time(time: f64) {
-    let time = Duration::seconds_f64(time);
-    timer::set_game_time(time);
 }
