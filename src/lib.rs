@@ -10,25 +10,19 @@ use asr::{
     watcher::Watcher,
 };
 
-#[cfg(debug_assertions)]
 #[macro_export]
 macro_rules! log {
-    ($($arg:tt)*) => {{
+    ($format:expr$(, $($arg:tt)*)?) => {{
         let mut buf = ::asr::arrayvec::ArrayString::<1024>::new();
         let _ = ::core::fmt::Write::write_fmt(
             &mut buf,
-            ::core::format_args!($($arg)*),
+            ::core::format_args!(concat!("[SoS]: ", $format) $(, $($arg)*)?),
         );
         ::asr::print_message(&buf);
     }};
 }
 
-#[cfg(not(debug_assertions))]
-#[macro_export]
-macro_rules! log {
-    ($($arg:tt)*) => {};
-}
-
+#[cfg(debug_assertions)]
 #[macro_export]
 macro_rules! dbg {
     // Copy of ::std::dbg! but for no_std with redirection to log!
@@ -49,6 +43,14 @@ macro_rules! dbg {
     ($($val:expr),+ $(,)?) => {
         ($($crate::dbg!($val)),+,)
     };
+}
+
+#[cfg(not(debug_assertions))]
+#[macro_export]
+macro_rules! dbg {
+    () => {};
+    ($val:expr $(,)?) => {};
+    ($($val:expr),+ $(,)?) => {};
 }
 
 mod data;
@@ -189,7 +191,7 @@ impl State<'_> {
     fn connect_process(&mut self) -> Option<Process> {
         self.tick_lrt();
         let process = Process::attach("SeaOfStars.exe")?;
-        log!("attached to process");
+        log!("Attached to process");
         return Some(process);
     }
 
@@ -266,7 +268,7 @@ impl NotRunning {
         let current = data.game_start(process, self.game_start);
         if current != self.game_start {
             log!(
-                "Game state changed from {:?} to {:?}",
+                "Game Start changed from {:?} to {:?}",
                 self.game_start,
                 current
             );
@@ -405,7 +407,20 @@ impl Settings {
 }
 
 fn act(action: Option<Action>, settings: &Settings) {
-    if let Some(action) = action.filter(|o| settings.filter(o)) {
+    let Some(action) = action else {
+        return;
+    };
+    match action {
+        Action::StartCharacter
+        | Action::StartRelic
+        | Action::Split
+        | Action::SplitAndGameTime(_) => {
+            log!("Possible action: {:?}", action)
+        }
+        Action::Pause | Action::Resume => {}
+        Action::SetGameTime(_) => {}
+    }
+    if settings.filter(&action) {
         match action {
             Action::StartCharacter => {
                 log!("Starting timer on char select");
@@ -421,11 +436,9 @@ fn act(action: Option<Action>, settings: &Settings) {
                 timer::split();
             }
             Action::Pause => {
-                log!("Pause game time");
                 timer::pause_game_time();
             }
             Action::Resume => {
-                log!("Resume game time");
                 timer::resume_game_time();
             }
             Action::SetGameTime(time) => {
