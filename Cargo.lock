@@ -17,7 +17,6 @@ dependencies = [
  "asr-derive",
  "bytemuck",
  "memchr",
- "ryu",
  "time",
  "wasi",
 ]
@@ -94,12 +93,6 @@ checksum = "50f3b39ccfb720540debaa0164757101c08ecb8d326b15358ce76a62c7e85965"
 dependencies = [
  "proc-macro2",
 ]
-
-[[package]]
-name = "ryu"
-version = "1.0.22"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a50f4cf475b65d88e057964e0e9bb1f0aa9bbb2036dc65c64596b42932536984"
 
 [[package]]
 name = "sea-of-stars-autosplitter"

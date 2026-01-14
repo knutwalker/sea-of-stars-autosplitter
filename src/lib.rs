@@ -93,6 +93,7 @@ enum Action {
 
 struct NotRunning {
     game_start: GameStart,
+    initial_relic_time: Watcher<f64>,
     start_at: f64,
 }
 
@@ -100,6 +101,7 @@ impl Default for NotRunning {
     fn default() -> Self {
         Self {
             game_start: GameStart::Undecided,
+            initial_relic_time: Watcher::new(),
             start_at: 0.0,
         }
     }
@@ -249,12 +251,19 @@ impl NotRunning {
     ) -> Option<Action> {
         if settings.relic_start {
             let _ = self.game_start(process, data);
-            if self.game_start >= GameStart::DifficultyScreen
-                && let Some(SpeedrunRelic::Active(time)) = data.speedrun_time(process)
-                && time > 0.0
-            {
-                self.start_at = time;
-                return Some(Action::StartRelic);
+            if self.game_start >= GameStart::DifficultyScreen {
+                match data.speedrun_time(process) {
+                    Some(SpeedrunRelic::Active(time)) => {
+                        let relic_time = self.initial_relic_time.update_infallible(time);
+                        if relic_time.bytes_changed() {
+                            self.start_at = relic_time.current;
+                            return Some(Action::StartRelic);
+                        }
+                    }
+                    Some(SpeedrunRelic::Inactive) | None => {
+                        let _irt = self.initial_relic_time.update(None);
+                    }
+                }
             }
         } else if settings.start {
             if let Some(GameStart::CharSelected) = self.game_start(process, data) {

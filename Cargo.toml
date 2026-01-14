@@ -17,7 +17,7 @@ features = [
   # "alloc", # Working with allocations.
   "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
   # "flags", # Working with bit flags.
-  "float-vars", # Setting floating point variables.
+  # "float-vars", # Setting floating point variables.
   # "float-vars-small", # Setting floating point variables (small binary size).
   # "integer-vars", # Setting integer variables.
   # "signature", # Scanning signatures.
