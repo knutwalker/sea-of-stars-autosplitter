@@ -1,28 +1,32 @@
 [package]
 name = "sea-of-stars-autosplitter"
-version = "0.1.0"
-edition = "2021"
+version = "0.2.0"
+edition = "2024"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-asr = { git = "https://github.com/LiveSplit/asr", rev = "1acef2e8583417ff5b566dd583000daeb1a970a5", features = [
-    # "alloc", # Working with allocations.
-    "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
-    # "flags", # Working with bit flags.
-    # "float-vars", # Setting floating point variables.
-    # "float-vars-small", # Setting floating point variables (small binary size).
-    # "integer-vars", # Setting integer variables.
-    # "signature", # Scanning signatures.
-    # "wasi-no-std", # Support for no_std on WASI.
-    "unity", # Accessing games using the Unity engine.
-    # "gba", # Accessing Game Boy Advance emulators.
-    # "genesis", # Accessing Genesis emulators.
-    # "ps1", # Accessing PlayStation emulators.
-] }
+paste = "1.0.0"
 
-paste = "1.0.14"
+[dependencies.asr]
+git = "https://github.com/LiveSplit/asr"
+# keep the version pinned since https://github.com/LiveSplit/asr/pull/119 broke SoS for some reason
+rev = "15ad01fa9675429ad33147b962091f3afa1cddff"
+features = [
+  # "alloc", # Working with allocations.
+  "derive", # Defining your own settings structs, converting endianness, and binding to .NET classes.
+  # "flags", # Working with bit flags.
+  # "float-vars", # Setting floating point variables.
+  # "float-vars-small", # Setting floating point variables (small binary size).
+  # "integer-vars", # Setting integer variables.
+  # "signature", # Scanning signatures.
+  # "wasi-no-std", # Support for no_std on WASI.
+  "unity", # Accessing games using the Unity engine.
+  # "gba", # Accessing Game Boy Advance emulators.
+  # "genesis", # Accessing Genesis emulators.
+  # "ps1", # Accessing PlayStation emulators.
+]
 
 [lib]
 crate-type = ["cdylib"]
@@ -34,4 +38,10 @@ codegen-units = 1
 strip = true
 
 [profile.release.build-override]
-opt-level = 0
+opt-level = 2
+
+[lints.clippy]
+bool-comparison = "allow"
+collapsible-if = "allow"
+needless-return = "allow"
+manual-div-ceil = "allow"
