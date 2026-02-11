@@ -1,8 +1,8 @@
 #![no_std]
 
-use crate::data::{Data, GameStart, SpeedrunRelic};
+use crate::data::{Data, SpeedrunRelic, StartScreen};
 use asr::{
-    Address64, Process,
+    Address, Process,
     future::next_tick,
     settings::Gui,
     timer::{self, TimerState},
@@ -53,6 +53,8 @@ macro_rules! dbg {
 }
 
 mod data;
+mod memory;
+mod utils;
 
 // const TICK_RATE: f64 = 2.0;
 const TICK_RATE: f64 = 60.0;
@@ -92,7 +94,7 @@ enum Action {
 }
 
 struct NotRunning {
-    game_start: GameStart,
+    start_screen: StartScreen,
     initial_relic_time: Watcher<f64>,
     start_at: f64,
 }
@@ -100,7 +102,7 @@ struct NotRunning {
 impl Default for NotRunning {
     fn default() -> Self {
         Self {
-            game_start: GameStart::Undecided,
+            start_screen: StartScreen::Undecided,
             initial_relic_time: Watcher::new(),
             start_at: 0.0,
         }
@@ -109,7 +111,7 @@ impl Default for NotRunning {
 
 struct Running {
     loading: Watcher<bool>,
-    encounter: Option<Address64>,
+    encounter: Option<Address>,
     relic_time: Watcher<f64>,
     paused: bool,
 }
@@ -250,8 +252,10 @@ impl NotRunning {
         data: &Data,
     ) -> Option<Action> {
         if settings.relic_start {
-            let _ = self.game_start(process, data);
-            if self.game_start >= GameStart::DifficultyScreen {
+            let current = self
+                .start_screen(process, data)
+                .unwrap_or(self.start_screen);
+            if current >= StartScreen::DifficultyScreen {
                 match data.speedrun_time(process) {
                     Some(SpeedrunRelic::Active(time)) => {
                         let relic_time = self.initial_relic_time.update_infallible(time);
@@ -266,7 +270,7 @@ impl NotRunning {
                 }
             }
         } else if settings.start {
-            if let Some(GameStart::CharSelected) = self.game_start(process, data) {
+            if let Some(StartScreen::CharSelected) = self.start_screen(process, data) {
                 return Some(Action::StartCharacter);
             }
         }
@@ -274,16 +278,15 @@ impl NotRunning {
         return None;
     }
 
-    fn game_start(&mut self, process: &Process, data: &Data) -> Option<GameStart> {
-        let current = data.game_start(process, self.game_start);
-        if current != self.game_start {
+    fn start_screen(&mut self, process: &Process, data: &Data) -> Option<StartScreen> {
+        if let Some(next) = data.start_screen(process, self.start_screen) {
             log!(
-                "Game Start changed from {:?} to {:?}",
-                self.game_start,
-                current
+                "Start screen changed from {:?} to {:?}",
+                self.start_screen,
+                next
             );
-            self.game_start = current;
-            return Some(current);
+            self.start_screen = next;
+            return Some(next);
         }
         return None;
     }

@@ -1,19 +1,23 @@
 use asr::{
-    Address, Address64, Process,
-    game_engine::unity::il2cpp::{Class, Module, Version},
+    Address, Process,
+    game_engine::unity::il2cpp::{Module, Version},
+};
+
+use crate::{
+    memory::{Combat, Encounter, Loading, Relic, TitleScreen},
+    utils::{Assembly, UnityPointerExt},
 };
 
 pub struct Data {
-    level: Singleton<LevelManagerBinding>,
-    combat: Singleton<CombatManagerBinding>,
-    encounter: EncounterBinding,
-    title_screen: TitleScreen,
-    speedrun: Singleton<SpeedrunManagerBinding>,
-    speedrun_timer: SpeedrunTimerBinding,
+    asm: Assembly,
+    title: TitleScreen,
+    relic: Relic,
+    combat: Combat,
+    loading: Loading,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum GameStart {
+pub enum StartScreen {
     Undecided,
     TitleScreen,
     CharSelected,
@@ -28,262 +32,81 @@ pub enum SpeedrunRelic {
 }
 
 impl Data {
-    pub fn game_start(&self, process: &Process, current: GameStart) -> GameStart {
-        self.try_game_start(process, current)
-            .unwrap_or(GameStart::Undecided)
-    }
-
-    fn try_game_start(&self, process: &Process, current: GameStart) -> Option<GameStart> {
-        let title_screen = self.title_screen.get(process)?;
-        let char_select = self.title_screen.char_select(process, &title_screen)?;
-        let difficulty_select = self
-            .title_screen
-            .difficulty_select(process, &title_screen)?;
-        let relic_select = self.title_screen.relic_select(process, &title_screen)?;
-
-        if !char_select.selected {
-            return Some(GameStart::TitleScreen);
-        }
-
-        if relic_select.active && current < GameStart::RelicScreen {
-            return Some(GameStart::RelicScreen);
-        }
-
-        if difficulty_select.active && current < GameStart::DifficultyScreen {
-            return Some(GameStart::DifficultyScreen);
-        }
-
-        if current == GameStart::RelicScreen
-            && relic_select.active == false
-            && difficulty_select.active == false
-        {
-            return Some(GameStart::DifficultyScreen);
-        }
-
-        (current == GameStart::TitleScreen)
-            .then_some(GameStart::CharSelected)
-            .or(Some(current))
-    }
-
-    pub fn is_loading(&self, process: &Process) -> Option<bool> {
-        Some(self.level.read(process)?.is_loading)
-    }
-
-    pub fn encounter(&self, process: &Process) -> Option<(Address64, Encounter)> {
-        let combat = self.combat.read(process)?;
-        let address = combat.encounter;
-        let encounter = self.resolve_encounter(process, address)?;
-        Some((address, encounter))
-    }
-
-    pub fn resolve_encounter(&self, process: &Process, address: Address64) -> Option<Encounter> {
-        self.encounter.read(process, address.into()).ok()
-    }
-
-    pub fn speedrun_time(&self, process: &Process) -> Option<SpeedrunRelic> {
-        let speedrun_manager = self.speedrun.read(process)?;
-        if !speedrun_manager.relic_active {
-            return Some(SpeedrunRelic::Inactive);
-        }
-
-        let timer = self
-            .speedrun_timer
-            .read(process, speedrun_manager.timer.into())
-            .ok()?;
-
-        Some(SpeedrunRelic::Active(timer.time))
-    }
-}
-
-#[derive(Class)]
-struct LevelManager {
-    #[rename = "loadingLevel"]
-    is_loading: bool,
-}
-
-#[derive(Class)]
-struct CombatManager {
-    #[rename = "currentEncounter"]
-    encounter: Address64,
-}
-
-#[derive(Class, Debug)]
-pub struct Encounter {
-    #[rename = "encounterDone"]
-    pub done: bool,
-    #[rename = "bossEncounter"]
-    pub boss: bool,
-}
-
-#[derive(Class)]
-struct TitleSequenceManager {
-    #[rename = "characterSelectionScreen"]
-    selection_screen: Address64,
-    #[rename = "relicSelectionScreen"]
-    relic_screen: Address64,
-    #[rename = "difficultySelectionScreen"]
-    difficulty_screen: Address64,
-}
-
-#[derive(Class)]
-struct CharacterSelectionScreen {
-    #[rename = "characterSelected"]
-    selected: bool,
-}
-
-#[derive(Class)]
-struct RelicSelectionScreen {
-    active: bool,
-}
-
-#[derive(Class)]
-struct DifficultySelectionScreen {
-    active: bool,
-}
-
-#[derive(Class)]
-struct SpeedrunManager {
-    // TODO: pause timer shown
-    #[rename = "isSpeedRunning"]
-    relic_active: bool,
-    #[rename = "speedrunTimer"]
-    timer: Address64,
-}
-
-#[derive(Class)]
-struct SpeedrunTimer {
-    #[rename = "timerInSecond"]
-    time: f64,
-}
-
-impl Data {
     pub async fn wait_new(process: &Process) -> Data {
         let module = Module::wait_attach(process, Version::V2020).await;
         let image = module.wait_get_default_image(process).await;
         log!("Attached to the game");
-
-        macro_rules! bind {
-            ($cls:ty) => {{
-                let binding = <$cls>::bind(process, &module, &image).await;
-                log!(concat!("Created binding for class ", stringify!($cls)));
-                binding
-            }};
-            (singleton $cls:ty) => {{
-                let binding = <$cls>::bind(process, &module, &image).await;
-                let address = binding
-                    .class()
-                    .wait_get_parent(process, &module)
-                    .await
-                    .wait_get_static_instance(process, &module, "instance")
-                    .await;
-
-                log!(
-                    concat!("found ", stringify!($cls), " instance at {}"),
-                    address
-                );
-
-                Singleton { binding, address }
-            }};
-        }
-
-        let char_select = bind!(CharacterSelectionScreen);
-        let relic_select = bind!(RelicSelectionScreen);
-        let difficulty_select = bind!(DifficultySelectionScreen);
-        let speedrun = bind!(singleton SpeedrunManager);
-        let level = bind!(singleton LevelManager);
-        let combat = bind!(singleton CombatManager);
-        let encounter = bind!(Encounter);
-        let speedrun_timer = bind!(SpeedrunTimer);
-
-        let title_screen = bind!(TitleSequenceManager);
-        let title_screen = TitleScreen {
-            module,
-            bind: title_screen,
-            char_select,
-            relic_select,
-            difficulty_select,
-        };
+        let combat = Combat::new(process, &module, &image).await;
+        let asm = Assembly { module, image };
 
         Self {
-            level,
+            asm,
+            title: TitleScreen::new(),
+            relic: Relic::new(),
             combat,
-            encounter,
-            title_screen,
-            speedrun,
-            speedrun_timer,
-        }
-    }
-}
-
-struct Singleton<T> {
-    binding: T,
-    address: Address,
-}
-
-macro_rules! impl_binding {
-    ($($cls:ty),+ $(,)?) => {
-        $(::paste::paste! {
-            impl Singleton<[<$cls Binding>]> {
-                fn read(&self, process: &Process) -> Option<$cls> {
-                    self.binding.read(process, self.address).ok()
-                }
-            }
-        })+
-    };
-}
-
-impl_binding!(LevelManager, CombatManager, SpeedrunManager);
-
-struct TitleScreen {
-    module: Module,
-    bind: TitleSequenceManagerBinding,
-    char_select: CharacterSelectionScreenBinding,
-    relic_select: RelicSelectionScreenBinding,
-    difficulty_select: DifficultySelectionScreenBinding,
-}
-
-impl TitleScreen {
-    fn get(&self, process: &Process) -> Option<TitleSequenceManager> {
-        let parent = self.bind.class().get_parent(process, &self.module)?;
-        let static_table = parent.get_static_table(process, &self.module)?;
-        let instance_offset = parent.get_field_offset(process, &self.module, "instance")?;
-        let location = static_table + instance_offset;
-
-        let addr = process.read::<Address64>(location).ok()?;
-        if !addr.is_null() {
-            self.bind.read(process, addr.into()).ok()
-        } else {
-            None
+            loading: Loading::new(),
         }
     }
 
-    fn char_select(
-        &self,
-        process: &Process,
-        title_screen: &TitleSequenceManager,
-    ) -> Option<CharacterSelectionScreen> {
-        self.char_select
-            .read(process, title_screen.selection_screen.into())
-            .ok()
+    pub fn start_screen(&self, process: &Process, current: StartScreen) -> Option<StartScreen> {
+        let next = self
+            .find_start_screen(process, current)
+            .unwrap_or(StartScreen::Undecided);
+        if current != next {
+            return Some(next);
+        }
+        return None;
     }
 
-    fn relic_select(
-        &self,
-        process: &Process,
-        title_screen: &TitleSequenceManager,
-    ) -> Option<RelicSelectionScreen> {
-        self.relic_select
-            .read(process, title_screen.relic_screen.into())
-            .ok()
+    fn find_start_screen(&self, process: &Process, current: StartScreen) -> Option<StartScreen> {
+        let char_selected = self.title.char_selected.bool(process, &self.asm)?;
+        if char_selected == false {
+            return Some(StartScreen::TitleScreen);
+        }
+
+        let relic_select = self.title.relic_active.bool(process, &self.asm)?;
+        if relic_select && current < StartScreen::RelicScreen {
+            return Some(StartScreen::RelicScreen);
+        }
+
+        let difficulty_select = self.title.difficulty_active.bool(process, &self.asm)?;
+        if difficulty_select && current < StartScreen::DifficultyScreen {
+            return Some(StartScreen::DifficultyScreen);
+        }
+
+        if current == StartScreen::RelicScreen
+            && relic_select == false
+            && difficulty_select == false
+        {
+            return Some(StartScreen::DifficultyScreen);
+        }
+
+        (current == StartScreen::TitleScreen)
+            .then_some(StartScreen::CharSelected)
+            .or(Some(current))
     }
 
-    fn difficulty_select(
-        &self,
-        process: &Process,
-        title_screen: &TitleSequenceManager,
-    ) -> Option<DifficultySelectionScreen> {
-        self.difficulty_select
-            .read(process, title_screen.difficulty_screen.into())
-            .ok()
+    pub fn is_loading(&self, process: &Process) -> Option<bool> {
+        self.loading.is_loading.read(process, &self.asm)
+    }
+
+    pub fn speedrun_time(&self, process: &Process) -> Option<SpeedrunRelic> {
+        let active = self.relic.active.bool(process, &self.asm)?;
+        if active == false {
+            return Some(SpeedrunRelic::Inactive);
+        }
+
+        let time = self.relic.time.read(process, &self.asm)?;
+        return Some(SpeedrunRelic::Active(time));
+    }
+
+    pub fn encounter(&self, process: &Process) -> Option<(Address, Encounter)> {
+        let address = self.combat.encounter.addr(process, &self.asm)?;
+        let encounter = self.resolve_encounter(process, address)?;
+        Some((address, encounter))
+    }
+
+    pub fn resolve_encounter(&self, process: &Process, address: Address) -> Option<Encounter> {
+        return self.combat.enc.read(process, address).ok();
     }
 }
