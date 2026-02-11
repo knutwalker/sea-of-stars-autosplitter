@@ -2,52 +2,51 @@ name: Build
 
 on:
   pull_request:
-    branches:
-      - main
   push:
     branches:
-      - main
+      - "main"
+    tags:
+      - "*"
   workflow_dispatch:
-    
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Commit
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: hecrj/setup-rust-action@v1
+        uses: hecrj/setup-rust-action@v2
         with:
           rust-version: stable
           targets: wasm32-unknown-unknown
 
       - name: Build
         run: |
-          cargo b --locked
+          cargo b --release --locked
 
       - name: Release
         if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2.2.2
         with:
           files: target/wasm32-unknown-unknown/release/sea_of_stars_autosplitter.wasm
           name: Latest
           tag_name: latest
           body: This contains the latest version of the auto splitter.
-          generate_release_notes: true
-          append_body: true
 
   clippy:
     name: Check clippy lints
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Commit
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: hecrj/setup-rust-action@v1
+        uses: hecrj/setup-rust-action@v2
         with:
           components: clippy
           targets: wasm32-unknown-unknown
@@ -60,10 +59,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Commit
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: hecrj/setup-rust-action@v1
+        uses: hecrj/setup-rust-action@v2
         with:
           components: rustfmt
 
