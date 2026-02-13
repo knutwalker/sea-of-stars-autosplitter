@@ -3,7 +3,10 @@ use asr::{
     game_engine::unity::il2cpp::{Class, Image, Module, UnityPointer},
 };
 
-use crate::utils::ptrpath1;
+use crate::{
+    data::Enemies,
+    utils::{CSString, List, Pointer, ptrpath1},
+};
 
 pub struct TitleScreen {
     pub char_selected: UnityPointer<3>,
@@ -61,22 +64,47 @@ impl Loading {
 
 #[derive(Copy, Clone, Debug, Class)]
 pub struct Encounter {
-    #[rename = "encounterDone"]
-    pub done: bool,
     #[rename = "bossEncounter"]
+    pub boss: bool,
+    #[rename = "enemyActors"]
+    pub enemy_actors: Pointer<List<Pointer<EnemyCombatActor>>>,
+}
+
+#[derive(Copy, Clone, Debug, Class)]
+pub struct EnemyCombatActor {
+    #[rename = "enemyData"]
+    pub data: Pointer<EnemyCharacterData>,
+}
+
+#[derive(Copy, Clone, Debug, Class)]
+pub struct EnemyCharacterData {
+    pub guid: Pointer<CSString>,
+}
+
+pub struct EncounterData {
+    pub enemies: Enemies,
     pub boss: bool,
 }
 
 pub struct Combat {
     pub encounter: UnityPointer<2>,
+    pub done: UnityPointer<3>,
     pub enc: EncounterBinding,
+    pub actor: EnemyCombatActorBinding,
+    pub char: EnemyCharacterDataBinding,
 }
 
 impl Combat {
     pub async fn new(process: &Process, module: &Module, image: &Image) -> Self {
         return Self {
             encounter: ptrpath1("CombatManager", ["instance", "currentEncounter"]),
+            done: ptrpath1(
+                "CombatManager",
+                ["instance", "currentEncounter", "encounterDone"],
+            ),
             enc: Encounter::bind(process, module, image).await,
+            actor: EnemyCombatActor::bind(process, module, image).await,
+            char: EnemyCharacterData::bind(process, module, image).await,
         };
     }
 }

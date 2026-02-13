@@ -1,8 +1,11 @@
 #![no_std]
 
-use crate::data::{Data, SpeedrunRelic, StartScreen};
+use crate::{
+    data::{Data, SpeedrunRelic, StartScreen},
+    splits::{EventHandler, Running, Split},
+};
 use asr::{
-    Address, Process,
+    Process,
     future::next_tick,
     settings::Gui,
     timer::{self, TimerState},
@@ -33,27 +36,32 @@ macro_rules! dbg {
         // of temporaries - https://stackoverflow.com/a/48732525/1063961
         match $val {
             tmp => {
-                $crate::log!("[{}:{}] {} = {:#?}",
-                    ::core::file!(), ::core::line!(), ::core::stringify!($val), &tmp);
+                $crate::log!(
+                    "[{}:{}] {} = {:#?}",
+                    ::core::file!(),
+                    ::core::line!(),
+                    ::core::stringify!($val),
+                    &tmp
+                );
                 tmp
             }
         }
-    };
-    ($($val:expr),+ $(,)?) => {
-        ($($crate::dbg!($val)),+,)
     };
 }
 
 #[cfg(not(debug_assertions))]
 #[macro_export]
 macro_rules! dbg {
-    () => {};
-    ($val:expr $(,)?) => {};
-    ($($val:expr),+ $(,)?) => {};
+    () => {{}};
+    ($val:expr $(,)?) => {
+        $val
+    };
 }
 
 mod data;
+mod mapping;
 mod memory;
+mod splits;
 mod utils;
 
 // const TICK_RATE: f64 = 2.0;
@@ -86,11 +94,10 @@ pub struct Settings {
 enum Action {
     StartCharacter,
     StartRelic,
-    Split,
+    SplitBoss,
+    Split(Split),
     Pause,
     Resume,
-    SplitAndPause,
-    SplitAndResume,
 }
 
 struct NotRunning {
@@ -106,26 +113,6 @@ impl Default for NotRunning {
             initial_relic_time: Watcher::new(),
             start_at: 0.0,
         }
-    }
-}
-
-struct Running {
-    loading: Watcher<bool>,
-    encounter: Option<Address>,
-    relic_time: Watcher<f64>,
-    paused: bool,
-}
-
-impl Running {
-    fn new(time: f64) -> Self {
-        let mut running = Self {
-            loading: Watcher::new(),
-            encounter: None,
-            relic_time: Watcher::new(),
-            paused: false,
-        };
-        let _ = running.relic_time.update_infallible(time);
-        running
     }
 }
 
@@ -168,47 +155,40 @@ impl Timer {
 }
 
 struct Game {
-    // option because of borrowck shenanigans
-    process: Option<Process>,
+    process: Process,
     data: Data,
 }
 
 struct State<'s> {
-    settings: &'s mut Settings,
+    handler: EventHandler<'s>,
     timer: Timer,
-    game: Option<Game>,
 }
 
-impl State<'_> {
-    async fn connect(&mut self) {
-        if self.game.is_none() {
-            let process = Process::wait_attach("SeaOfStars.exe").await;
-            log!("Attached to process");
-            let data = Data::wait_new(&process).await;
-            self.game = Some(Game {
-                process: Some(process),
-                data,
-            });
+impl<'s> State<'s> {
+    fn new(settings: &'s mut Settings) -> Self {
+        Self {
+            handler: EventHandler::new(settings),
+            timer: Timer::new(),
         }
     }
 
-    async fn connected_loop(&mut self) {
-        let Some(mut game) = self.game.take() else {
-            unreachable!()
-        };
-        let Some(process) = game.process.take() else {
-            unreachable!()
-        };
+    async fn connect(&mut self) -> Game {
+        let process = Process::wait_attach("SeaOfStars.exe").await;
+        log!("Attached to process");
+        let data = Data::wait_new(&process).await;
+        return Game { process, data };
+    }
 
+    async fn connected_loop(&mut self, Game { process, data }: &Game) {
         process
-            .until_closes(self.main_loop(&process, &game.data))
+            .until_closes(self.main_loop(process, data))
             .await
             .unwrap_or_default();
 
         // always resume game timer after a disconnect
         // in case a crash happened during a load
         if let Timer::Running(ref mut r) = self.timer {
-            r.act(self.settings, Action::Resume);
+            r.act(self.handler.settings, Action::Resume);
         }
     }
 
@@ -216,7 +196,7 @@ impl State<'_> {
         loop {
             self.tick(process, data);
             next_tick().await;
-            self.settings.update();
+            self.handler.settings.update();
         }
     }
 
@@ -225,11 +205,11 @@ impl State<'_> {
         match timer_state {
             TimerState::Running | TimerState::Paused => {
                 let running = self.timer.get_or_start();
-                running.tick(self.settings, process, data);
+                running.tick(&mut self.handler, process, data);
             }
             TimerState::NotRunning | TimerState::Ended => {
                 let not_running = self.timer.stop();
-                not_running.tick(self.settings, process, data);
+                not_running.tick(self.handler.settings, process, data);
             }
             _otherwise => {
                 log!("Unexpected timer state: {:?}", _otherwise);
@@ -308,113 +288,6 @@ impl NotRunning {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-enum LoadRemoval {
-    Pause,
-    Resume,
-}
-
-impl Running {
-    fn tick(&mut self, settings: &Settings, process: &Process, data: &Data) {
-        let load_removal = self.load_removal(settings, process, data);
-        let split = settings.split && self.check_encounter_done(process, data);
-
-        let action = match (load_removal, split) {
-            (None, false) => return,
-            (None, true) => Action::Split,
-            (Some(LoadRemoval::Pause), false) => Action::Pause,
-            (Some(LoadRemoval::Pause), true) => Action::SplitAndPause,
-            (Some(LoadRemoval::Resume), false) => Action::Resume,
-            (Some(LoadRemoval::Resume), true) => Action::SplitAndResume,
-        };
-        self.act(settings, action);
-    }
-
-    fn load_removal(
-        &mut self,
-        settings: &Settings,
-        process: &Process,
-        data: &Data,
-    ) -> Option<LoadRemoval> {
-        if settings.remove_loads == false {
-            return None;
-        }
-        if settings.custom_load_remover == false
-            && let Some(SpeedrunRelic::Active(time)) = data.speedrun_time(process)
-        {
-            let relic_time = self.relic_time.update_infallible(time);
-            match (relic_time.increased(), self.paused) {
-                // relic and lrt are both running
-                (true, false) => {}
-                // relic and lrt are both paused
-                (false, true) => {}
-                // relic paused, lrt is running, need to pause lrt
-                (false, false) => return Some(LoadRemoval::Pause),
-                // relic is running, lrt is paused, need to unpause lrt
-                (true, true) => return Some(LoadRemoval::Resume),
-            }
-        } else if settings.custom_load_remover == true {
-            match self.loading.update(data.is_loading(process)) {
-                Some(l) if l.changed_to(&false) => return Some(LoadRemoval::Resume),
-                Some(l) if l.changed_to(&true) => return Some(LoadRemoval::Pause),
-                _ => {}
-            }
-        }
-
-        return None;
-    }
-
-    fn check_encounter_done(&mut self, process: &Process, data: &Data) -> bool {
-        match self.encounter {
-            Some(enc) => match data.resolve_encounter(process, enc) {
-                Some(enc) if enc.done => {
-                    self.encounter = None;
-                    return true;
-                }
-                Some(_) => {}
-                None => {
-                    self.encounter = None;
-                }
-            },
-            None => {
-                let Some((address, encounter)) = data.encounter(process) else {
-                    return false;
-                };
-                if encounter.boss && !encounter.done {
-                    self.encounter = Some(address);
-                }
-            }
-        };
-        return false;
-    }
-
-    fn act(&mut self, settings: &Settings, action: Action) {
-        match action {
-            Action::Split if settings.split => {
-                log!("Splitting");
-                timer::split();
-            }
-            Action::Pause if settings.remove_loads => {
-                self.paused = true;
-                timer::pause_game_time();
-            }
-            Action::Resume if settings.remove_loads => {
-                self.paused = false;
-                timer::resume_game_time();
-            }
-            Action::SplitAndPause => {
-                self.act(settings, Action::Pause);
-                self.act(settings, Action::Split);
-            }
-            Action::SplitAndResume => {
-                self.act(settings, Action::Resume);
-                self.act(settings, Action::Split);
-            }
-            _otherwise => {}
-        }
-    }
-}
-
 asr::async_main!(stable);
 asr::panic_handler!();
 
@@ -428,14 +301,10 @@ async fn main() {
         s
     };
 
-    let mut state = State {
-        settings: &mut settings,
-        timer: Timer::new(),
-        game: None,
-    };
+    let mut state = State::new(&mut settings);
 
     loop {
-        state.connect().await;
-        state.connected_loop().await;
+        let game = state.connect().await;
+        state.connected_loop(&game).await;
     }
 }

@@ -1,11 +1,13 @@
 use asr::{
-    Address, Process,
+    Process,
+    arrayvec::ArrayVec,
     game_engine::unity::il2cpp::{Module, Version},
 };
 
 use crate::{
-    memory::{Combat, Encounter, Loading, Relic, TitleScreen},
-    utils::{Assembly, UnityPointerExt},
+    mapping::{AnyEnemy, Enemy},
+    memory::{Combat, Encounter, EncounterData, EnemyCombatActor, Loading, Relic, TitleScreen},
+    utils::{Assembly, Pointer, UnityPointerExt},
 };
 
 pub struct Data {
@@ -30,6 +32,8 @@ pub enum SpeedrunRelic {
     Inactive,
     Active(f64),
 }
+
+pub type Enemies = ArrayVec<AnyEnemy, 6>;
 
 impl Data {
     pub async fn wait_new(process: &Process) -> Data {
@@ -100,13 +104,43 @@ impl Data {
         return Some(SpeedrunRelic::Active(time));
     }
 
-    pub fn encounter(&self, process: &Process) -> Option<(Address, Encounter)> {
-        let address = self.combat.encounter.addr(process, &self.asm)?;
-        let encounter = self.resolve_encounter(process, address)?;
-        Some((address, encounter))
+    pub fn encounter_done(&self, process: &Process) -> Option<bool> {
+        return self.combat.done.read(process, &self.asm);
     }
 
-    pub fn resolve_encounter(&self, process: &Process, address: Address) -> Option<Encounter> {
-        return self.combat.enc.read(process, address).ok();
+    pub fn encounter_data(&self, process: &Process) -> Option<EncounterData> {
+        let read_enemy = |ptr: Pointer<EnemyCombatActor>| -> Option<AnyEnemy> {
+            let actor = self.combat.actor.read(process, ptr.addr()).ok()?;
+            let data = self.combat.char.read(process, actor.data.addr()).ok()?;
+            let guid = data.guid.chars(process)?;
+            Enemy::resolve(guid).map(AnyEnemy::Known).or_else(|| {
+                #[cfg(debugger)]
+                return data.guid.to_string(process).map(AnyEnemy::Unknown);
+                #[cfg(not(debugger))]
+                return Some(AnyEnemy::Unknown(()));
+            })
+        };
+        let ptr = self
+            .combat
+            .encounter
+            .read::<Pointer<Encounter>>(process, &self.asm)?;
+        let enc = self.combat.enc.read(process, ptr.addr()).ok()?;
+        let enemies = enc.enemy_actors.iter(process)?;
+        let enemies = enemies
+            .filter_map(read_enemy)
+            .map(|o| match o {
+                AnyEnemy::Known(Enemy::DwellerOfStrife1) if enc.boss == false => {
+                    AnyEnemy::Known(Enemy::DwellerOfStrife2)
+                }
+                otherwise => otherwise,
+            })
+            .collect::<Enemies>();
+        if enemies.is_empty() {
+            return None;
+        }
+        Some(EncounterData {
+            enemies,
+            boss: enc.boss,
+        })
     }
 }
