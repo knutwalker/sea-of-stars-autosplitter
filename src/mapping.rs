@@ -1,4 +1,3 @@
-use asr::string::ArrayString;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -197,30 +196,6 @@ impl Enemy {
     }
 }
 
-#[cfg(debugger)]
-pub type Unknown = ArrayString<32>;
-#[cfg(not(debugger))]
-pub type Unknown = ();
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum AnyEnemy {
-    Known(Enemy),
-    Unknown(Unknown),
-}
-
-impl From<Enemy> for AnyEnemy {
-    fn from(enemy: Enemy) -> Self {
-        Self::Known(enemy)
-    }
-}
-
-#[cfg(debugger)]
-impl From<ArrayString<32>> for AnyEnemy {
-    fn from(enemy: ArrayString<32>) -> Self {
-        Self::Unknown(enemy)
-    }
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Level {
     FleshmancersLair,
@@ -260,12 +235,6 @@ pub enum Level {
     WaterTemple,
     WizardLab,
     WorldEeater,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum AnyLevel {
-    Known(Level),
-    Unknown(ArrayString<32>),
 }
 
 impl Level {

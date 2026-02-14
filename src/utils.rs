@@ -33,6 +33,10 @@ pub trait UnityPointerExt<const N: usize> {
         return self.read::<f64>(process, asm);
     }
 
+    fn u32(&self, process: &Process, asm: &Assembly) -> Option<u32> {
+        return self.read::<u32>(process, asm);
+    }
+
     fn u64(&self, process: &Process, asm: &Assembly) -> Option<u64> {
         return self.read::<u64>(process, asm);
     }

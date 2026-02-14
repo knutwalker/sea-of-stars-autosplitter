@@ -110,10 +110,7 @@ impl Progress {
     pub fn new() -> Self {
         Self {
             current_level: ptrpath1("LevelManager", ["instance", "currentLevelInfo", "level"]),
-            is_in_cutscene: ptrpath1(
-                "CutsceneManager",
-                ["instance", "<IsInCutscene>k__BackingField"],
-            ),
+            is_in_cutscene: ptrpath1("CutsceneManager", ["instance", "cutsceneCount"]),
         }
     }
 }

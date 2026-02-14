@@ -2,8 +2,8 @@ use core::num::NonZeroU32;
 
 use crate::{
     Action, Settings,
-    data::{Data, EncounterData, SpeedrunRelic},
-    mapping::{AnyEnemy, AnyLevel, Enemy, KeyItem, Level, Unknown},
+    data::{Data, EncounterData, Enemies, SpeedrunRelic},
+    mapping::{Enemy, KeyItem, Level},
     utils::{EnumSet, EnumSetMember},
 };
 use asr::{Process, arrayvec::ArrayVec, timer, watcher::Watcher};
@@ -257,7 +257,7 @@ pub struct Running {
     paused: bool,
     loading: Watcher<bool>,
     cutscene: Watcher<bool>,
-    level: Watcher<AnyLevel>,
+    level: Watcher<Level>,
     number_of_items: Watcher<u32>,
     inventory_generation: u32,
     key_items: [(u32, u32); 4],
@@ -294,8 +294,6 @@ enum Event {
     EncountersStart(ArrayVec<Enemy, 6>, bool),
     EncounterEnd(Enemy, bool),
     EncountersEnd(ArrayVec<Enemy, 6>, bool),
-    UnknownEnemyStart(ArrayVec<Unknown, 6>, bool),
-    UnknownEnemyEnd(ArrayVec<Unknown, 6>, bool),
     PickedUpKeyItem(KeyItem),
     LostKeyItem(KeyItem),
 }
@@ -478,8 +476,6 @@ impl<'s> EventHandler<'s> {
                 };
                 self.act(Action::Split(split));
             }
-            Event::UnknownEnemyStart(..) => {}
-            Event::UnknownEnemyEnd(..) => {}
             Event::PickedUpKeyItem(key_item) => {
                 use KeyItem::*;
                 let split = match key_item {
@@ -624,12 +620,11 @@ impl Running {
             // we were in an encounter, and now it's done
             (Some(start), Some(true)) => {
                 Self::split_enemies(
-                    &start.enemies,
+                    start.enemies.take(),
                     handler,
                     start.boss,
                     Event::EncounterEnd,
                     Event::EncountersEnd,
-                    Event::UnknownEnemyEnd,
                 );
                 self.encounter = None;
             }
@@ -640,12 +635,11 @@ impl Running {
                 };
                 enemies.enemies.sort_unstable();
                 Self::split_enemies(
-                    &enemies.enemies,
+                    enemies.enemies.clone(),
                     handler,
                     enemies.boss,
                     Event::EncounterStart,
                     Event::EncountersStart,
-                    Event::UnknownEnemyStart,
                 );
                 self.encounter = Some(enemies)
             }
@@ -668,13 +662,19 @@ impl Running {
             handler.accept(Event::CutsceneEnd);
         }
 
-        let Some(level) = self.level.update(progression.level).filter(|o| o.changed()) else {
+        let Some(level) = progression.level else {
             return;
         };
-        log!("Level changed from {:?} to {:?}", level.old, level.current);
-        if let (AnyLevel::Known(from), AnyLevel::Known(to)) = (level.old, level.current) {
-            handler.accept(Event::LevelChange { from, to })
+        let level = self.level.update_infallible(level);
+        if level.changed() == false {
+            return;
         }
+
+        log!("Level changed from {:?} to {:?}", level.old, level.current);
+        handler.accept(Event::LevelChange {
+            from: level.old,
+            to: level.current,
+        })
     }
 
     fn check_key_items(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
@@ -690,6 +690,7 @@ impl Running {
         if first == false && owned.changed() == false {
             return;
         }
+        timer::set_variable_int("owned_items", owned.current);
 
         let generation = self.inventory_generation.saturating_add(1);
         self.inventory_generation = generation;
@@ -729,36 +730,20 @@ impl Running {
     }
 
     fn split_enemies(
-        enemies: &[AnyEnemy],
+        enemies: Enemies,
         handler: &mut EventHandler<'_>,
         boss_encounter: bool,
         from_single: impl FnOnce(Enemy, bool) -> Event,
         from_multiple: impl FnOnce(ArrayVec<Enemy, 6>, bool) -> Event,
-        from_unknown: impl FnOnce(ArrayVec<Unknown, 6>, bool) -> Event,
     ) {
-        let mut known = ArrayVec::new();
-        let mut unknown = ArrayVec::new();
-
-        for enemy in enemies {
-            match enemy {
-                AnyEnemy::Known(enemy) => known.push(*enemy),
-                #[allow(clippy::unit_arg)]
-                AnyEnemy::Unknown(name) => unknown.push(*name),
-            }
-        }
-
-        match known.as_slice() {
+        match enemies.as_slice() {
             [] => {}
-            [known] => {
-                handler.accept(from_single(*known, boss_encounter));
+            [single] => {
+                handler.accept(from_single(*single, boss_encounter));
             }
             _ => {
-                handler.accept(from_multiple(known, boss_encounter));
+                handler.accept(from_multiple(enemies, boss_encounter));
             }
-        }
-
-        if unknown.is_empty() == false {
-            handler.accept(from_unknown(unknown, boss_encounter));
         }
     }
 }

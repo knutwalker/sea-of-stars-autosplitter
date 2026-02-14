@@ -2,11 +2,13 @@ use asr::{
     Process,
     arrayvec::ArrayVec,
     game_engine::unity::il2cpp::{Module, Version},
+    string::ArrayString,
+    timer,
 };
 use bytemuck::AnyBitPattern;
 
 use crate::{
-    mapping::{AnyEnemy, AnyLevel, Enemy, Level},
+    mapping::{Enemy, Level},
     memory::{
         Combat, Encounter, EnemyCombatActor, Inventory, Loading, Progress, Relic, TitleScreen,
     },
@@ -38,7 +40,7 @@ pub enum SpeedrunRelic {
     Active(f64),
 }
 
-pub type Enemies = ArrayVec<AnyEnemy, 6>;
+pub type Enemies = ArrayVec<Enemy, 6>;
 
 pub struct EncounterData {
     pub enemies: Enemies,
@@ -47,7 +49,7 @@ pub struct EncounterData {
 
 pub struct Progression {
     pub in_cutscene: bool,
-    pub level: Option<AnyLevel>,
+    pub level: Option<Level>,
 }
 
 #[derive(Copy, Clone, Debug, AnyBitPattern)]
@@ -131,16 +133,23 @@ impl Data {
     }
 
     pub fn encounter_data(&self, process: &Process) -> Option<EncounterData> {
-        let read_enemy = |ptr: Pointer<EnemyCombatActor>| -> Option<AnyEnemy> {
+        let read_enemy = |(idx, ptr): (usize, Pointer<EnemyCombatActor>)| -> Option<Enemy> {
             let actor = self.combat.actor.read(process, ptr.addr()).ok()?;
             let data = self.combat.char.read(process, actor.data.addr()).ok()?;
-            let guid = data.guid.chars(process)?;
-            Enemy::resolve(guid).map(AnyEnemy::Known).or_else(|| {
-                #[cfg(debugger)]
-                return data.guid.to_string(process).map(AnyEnemy::Unknown);
-                #[cfg(not(debugger))]
-                return Some(AnyEnemy::Unknown(()));
-            })
+
+            let guid = data.guid.to_string::<_, 32>(process).unwrap_or_default();
+            let key = match idx {
+                0 => "enemy_0",
+                1 => "enemy_1",
+                2 => "enemy_2",
+                3 => "enemy_3",
+                4 => "enemy_4",
+                5 => "enemy_5",
+                6 => "enemy_6",
+                _ => "enemy_x",
+            };
+            timer::set_variable(key, guid.as_str());
+            Enemy::resolve(data.guid.chars(process)?)
         };
         let ptr = self
             .combat
@@ -149,11 +158,10 @@ impl Data {
         let enc = self.combat.enc.read(process, ptr.addr()).ok()?;
         let enemies = enc.enemy_actors.iter(process)?;
         let enemies = enemies
+            .enumerate()
             .filter_map(read_enemy)
             .map(|o| match o {
-                AnyEnemy::Known(Enemy::DwellerOfStrife1) if enc.boss == false => {
-                    AnyEnemy::Known(Enemy::DwellerOfStrife2)
-                }
+                Enemy::DwellerOfStrife1 if enc.boss == false => Enemy::DwellerOfStrife2,
                 otherwise => otherwise,
             })
             .collect::<Enemies>();
@@ -172,25 +180,29 @@ impl Data {
             .current_level
             .read::<Reference>(process, &self.asm)
             .and_then(|o| {
-                o.guid.chars(process).map(|l| match Level::resolve(l) {
-                    Some(l) => AnyLevel::Known(l),
-                    None => AnyLevel::Unknown(o.guid.to_string(process).unwrap_or_default()),
-                })
+                let level_guid = o.guid.to_string::<_, 32>(process).unwrap_or_default();
+                timer::set_variable("level", level_guid.as_str());
+                o.guid.chars(process).and_then(Level::resolve)
             });
+
+        if let Some(ref level) = level {
+            use core::fmt::Write;
+            let mut buf = ArrayString::<32>::new();
+            let _ = write!(&mut buf, "{:?}", level);
+            timer::set_variable("level_name", buf.as_str());
+        }
 
         let in_cutscene = self
             .progress
             .is_in_cutscene
-            .bool(process, &self.asm)
-            .unwrap_or(false);
+            .u32(process, &self.asm)
+            .is_some_and(|o| o != 0);
+        timer::set_variable("in_cutscene", if in_cutscene { "true" } else { "false" });
 
         Progression { in_cutscene, level }
     }
 
     pub fn owned_items(&self, process: &Process) -> Option<Pointer<Map<Reference, u32>>> {
-        return self
-            .inventory
-            .owned_items
-            .ptr::<Map<Reference, u32>>(process, &self.asm);
+        return self.inventory.owned_items.read(process, &self.asm);
     }
 }
