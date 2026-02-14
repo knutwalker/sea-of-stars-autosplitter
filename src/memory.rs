@@ -3,10 +3,7 @@ use asr::{
     game_engine::unity::il2cpp::{Class, Image, Module, UnityPointer},
 };
 
-use crate::{
-    data::Enemies,
-    utils::{CSString, List, Pointer, ptrpath1},
-};
+use crate::utils::{CSString, List, Pointer, ptrpath1};
 
 pub struct TitleScreen {
     pub char_selected: UnityPointer<3>,
@@ -81,11 +78,6 @@ pub struct EnemyCharacterData {
     pub guid: Pointer<CSString>,
 }
 
-pub struct EncounterData {
-    pub enemies: Enemies,
-    pub boss: bool,
-}
-
 pub struct Combat {
     pub encounter: UnityPointer<2>,
     pub done: UnityPointer<3>,
@@ -106,5 +98,37 @@ impl Combat {
             actor: EnemyCombatActor::bind(process, module, image).await,
             char: EnemyCharacterData::bind(process, module, image).await,
         };
+    }
+}
+
+pub struct Progress {
+    pub current_level: UnityPointer<2>,
+    pub is_in_cutscene: UnityPointer<2>,
+}
+
+impl Progress {
+    pub fn new() -> Self {
+        Self {
+            current_level: ptrpath1("LevelManager", ["instance", "currentLevel"]),
+            is_in_cutscene: ptrpath1(
+                "CutsceneManager",
+                ["instance", "<IsInCutscene>k__BackingField"],
+            ),
+        }
+    }
+}
+
+pub struct Inventory {
+    pub owned_items: UnityPointer<3>,
+}
+
+impl Inventory {
+    pub fn new() -> Self {
+        Self {
+            owned_items: ptrpath1(
+                "InventoryManager",
+                ["instance", "ownedInventoryItems", "dictionary"],
+            ),
+        }
     }
 }

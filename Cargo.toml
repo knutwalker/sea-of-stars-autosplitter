@@ -8,6 +8,7 @@ license = "MIT"
 
 [dependencies]
 bytemuck = { version = "1", features = ["derive", "min_const_generics"] }
+num_enum = { version = "0.7", default-features = false }
 
 [dependencies.asr]
 git = "https://github.com/LiveSplit/asr"

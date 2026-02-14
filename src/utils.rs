@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use core::{fmt, marker::PhantomData};
 
 use asr::{
@@ -36,6 +38,11 @@ pub trait UnityPointerExt<const N: usize> {
     }
 
     fn addr(&self, process: &Process, asm: &Assembly) -> Option<Address>;
+
+    fn ptr<T: 'static>(&self, process: &Process, asm: &Assembly) -> Option<Pointer<T>> {
+        let addr = self.addr(process, asm)?;
+        Some(Pointer::from(addr))
+    }
 }
 
 impl<const N: usize> UnityPointerExt<N> for UnityPointer<N> {
@@ -45,6 +52,49 @@ impl<const N: usize> UnityPointerExt<N> for UnityPointer<N> {
 
     fn addr(&self, process: &Process, asm: &Assembly) -> Option<Address> {
         return self.deref_offsets(process, &asm.module, &asm.image).ok();
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EnumSet<T>(u128, PhantomData<T>);
+
+pub trait EnumSetMember {
+    fn ordinal(&self) -> Option<u8>;
+}
+
+impl<T: EnumSetMember> EnumSet<T> {
+    pub const fn empty() -> Self {
+        Self(0, PhantomData)
+    }
+
+    pub fn insert(&mut self, item: &T) -> bool {
+        let Some(ord) = item.ordinal() else {
+            return false;
+        };
+        if ord >= 128 {
+            return false;
+        }
+
+        let mask = 1_u128 << ord;
+        let previous = self.0 & mask;
+        self.0 |= mask;
+        return previous == 0;
+    }
+
+    pub fn contains(&mut self, item: &T) -> bool {
+        let Some(ord) = item.ordinal() else {
+            return false;
+        };
+        if ord >= 128 {
+            return false;
+        }
+
+        let mask = 1_u128 << ord;
+        return (self.0 & mask) == mask;
+    }
+
+    pub fn into_bits(self) -> u128 {
+        return self.0;
     }
 }
 
@@ -415,7 +465,7 @@ pub struct Map<K, V> {
     _header: u64,
     _header_2: u64,
     entries: Pointer<Array<Entry<K, V>>>,
-    size: u32,
+    pub size: u32,
 }
 
 #[derive(Copy, Clone, Debug, AnyBitPattern)]

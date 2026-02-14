@@ -3,11 +3,14 @@ use asr::{
     arrayvec::ArrayVec,
     game_engine::unity::il2cpp::{Module, Version},
 };
+use bytemuck::AnyBitPattern;
 
 use crate::{
-    mapping::{AnyEnemy, Enemy},
-    memory::{Combat, Encounter, EncounterData, EnemyCombatActor, Loading, Relic, TitleScreen},
-    utils::{Assembly, Pointer, UnityPointerExt},
+    mapping::{AnyEnemy, Enemy, Level},
+    memory::{
+        Combat, Encounter, EnemyCombatActor, Inventory, Loading, Progress, Relic, TitleScreen,
+    },
+    utils::{Assembly, CSString, Map, Pointer, UnityPointerExt},
 };
 
 pub struct Data {
@@ -15,6 +18,8 @@ pub struct Data {
     title: TitleScreen,
     relic: Relic,
     combat: Combat,
+    progress: Progress,
+    inventory: Inventory,
     loading: Loading,
 }
 
@@ -35,6 +40,21 @@ pub enum SpeedrunRelic {
 
 pub type Enemies = ArrayVec<AnyEnemy, 6>;
 
+pub struct EncounterData {
+    pub enemies: Enemies,
+    pub boss: bool,
+}
+
+pub struct Progression {
+    pub in_cutscene: bool,
+    pub level: Option<Level>,
+}
+
+#[derive(Copy, Clone, Debug, AnyBitPattern)]
+pub struct Reference {
+    pub guid: Pointer<CSString>,
+}
+
 impl Data {
     pub async fn wait_new(process: &Process) -> Data {
         let module = Module::wait_attach(process, Version::V2020).await;
@@ -48,6 +68,8 @@ impl Data {
             title: TitleScreen::new(),
             relic: Relic::new(),
             combat,
+            progress: Progress::new(),
+            inventory: Inventory::new(),
             loading: Loading::new(),
         }
     }
@@ -142,5 +164,29 @@ impl Data {
             enemies,
             boss: enc.boss,
         })
+    }
+
+    pub fn progression(&self, process: &Process) -> Progression {
+        let level = self
+            .progress
+            .current_level
+            .read::<Reference>(process, &self.asm)
+            .and_then(|o| o.guid.chars(process))
+            .and_then(Level::resolve);
+
+        let in_cutscene = self
+            .progress
+            .is_in_cutscene
+            .bool(process, &self.asm)
+            .unwrap_or(false);
+
+        Progression { in_cutscene, level }
+    }
+
+    pub fn owned_items(&self, process: &Process) -> Option<Pointer<Map<Reference, u32>>> {
+        return self
+            .inventory
+            .owned_items
+            .ptr::<Map<Reference, u32>>(process, &self.asm);
     }
 }

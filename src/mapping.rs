@@ -1,5 +1,6 @@
 #[cfg(debugger)]
 use asr::string::ArrayString;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Enemy {
@@ -385,7 +386,7 @@ impl Level {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum KeyItem {
     Graplou,

@@ -2,16 +2,16 @@ use core::num::NonZeroU32;
 
 use crate::{
     Action, Settings,
-    data::{Data, SpeedrunRelic},
+    data::{Data, EncounterData, SpeedrunRelic},
     mapping::{AnyEnemy, Enemy, KeyItem, Level, Unknown},
-    memory::EncounterData,
+    utils::{EnumSet, EnumSetMember},
 };
-use asr::{Process, arrayvec::ArrayVec, timer, watcher::Watcher};
+use asr::{Process, arrayvec::ArrayVec, watcher::Watcher};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, TryFromPrimitive, IntoPrimitive)]
 #[repr(u8)]
 pub enum Split {
-    _Start,
     Tutorial,
     Wyrd,
     Training,
@@ -106,31 +106,178 @@ pub enum Split {
     WorldEater,
 }
 
+impl Split {
+    pub fn is_enabled(self, settings: &Settings) -> bool {
+        if settings.split && self.compat() {
+            return true;
+        }
+        return self.filter(settings);
+    }
+
+    fn compat(&self) -> bool {
+        matches!(
+            self,
+            Split::Bossslug
+                | Split::ElderMist
+                | Split::Malkomud
+                | Split::Chromatic
+                | Split::Romaya
+                | Split::BigPlant
+                | Split::DwellerOfWoe
+                | Split::Stormcaller
+                | Split::DwellerOfTorment
+                | Split::LeafMonster
+                | Split::ErlynaAndBrugaves
+                | Split::OneTwoThreeFour
+                | Split::DwellerOfStrifeP1
+                | Split::Hydralion
+                | Split::Toadcano
+                | Split::Guardian
+                | Split::Triumvirate
+                | Split::Catalyst
+                | Split::DwellerOfDread
+                | Split::LeJugg
+                | Split::Reaper
+                | Split::ElysandarelleP2
+                | Split::WorldEater
+        )
+    }
+
+    pub fn filter(&self, settings: &Settings) -> bool {
+        match self {
+            Split::Tutorial => settings.tutorial,
+            Split::Wyrd => settings.wyrd,
+            Split::Training => settings.training,
+            Split::ForbiddenCavern => settings.forbidden_cavern,
+            Split::Bossslug => settings.bossslug,
+            Split::MountainTrails => settings.mountain_trails,
+            Split::ElderMistTrials => settings.elder_mist_trials,
+            Split::ElderMist => settings.elder_mist,
+            Split::Yeet => settings.yeet,
+            Split::XtolsLanding => settings.xtols_landing,
+            Split::_Moorland => settings.moorland,
+            Split::SolarRain => settings.solar_rain,
+            Split::WindMineTunnels => settings.wind_mine_tunnels,
+            Split::Rockie => settings.rockie,
+            Split::Malkomud => settings.malkomud,
+            Split::ChoralCascades => settings.choral_cascades,
+            Split::Brisk => settings.brisk,
+            Split::DemoWizardLab => settings.demo_wizard_lab,
+            Split::Chromatic => settings.chromatic,
+            Split::Boat => settings.boat,
+            Split::WraithIslandDocks => settings.wraith_island_docks,
+            Split::CursedWoods => settings.cursed_woods,
+            Split::FloodedGraveyard => settings.flooded_graveyard,
+            Split::Duke => settings.duke,
+            Split::NecromancerssLair => settings.necromancers_lair,
+            Split::RopeDart => settings.rope_dart,
+            Split::Romaya => settings.romaya,
+            Split::EnchantedScarf => settings.enchanted_scarf,
+            Split::Cooking => settings.cooking,
+            Split::Garden => settings.garden,
+            Split::BigPlant => settings.big_plant,
+            Split::DwellerOfWoeP1 => settings.dweller_of_woe_p1,
+            Split::DwellerOfWoe => settings.dweller_of_woe,
+            Split::BattleOfBrisk => settings.battle_of_brisk,
+            Split::Map => settings.map,
+            Split::ThreeTowers => settings.three_towers,
+            Split::Stormcaller => settings.stormcaller,
+            Split::Ship => settings.ship,
+            Split::BuildMirth => settings.build_mirth,
+            Split::Mirth => settings.mirth,
+            Split::JunglePath => settings.jungle_path,
+            Split::OneThree => settings._13,
+            Split::SacredGrove => settings.sacred_grove,
+            Split::ShoppingConches => settings.shopping_conches,
+            Split::Antsudlo => settings.antsudlo,
+            Split::GlacialPeak => settings.glacial_peak,
+            Split::TwoFour => settings._24,
+            Split::SignetOfclarity => settings.signet_of_clarity,
+            Split::TormentPeak => settings.torment_peak,
+            Split::DwellerOfTorment => settings.dweller_of_torment,
+            Split::BackToMirth => settings.back_to_mirth,
+            Split::MesaHike => settings.mesa_hike,
+            Split::AutumnHills => settings.autumn_hills,
+            Split::LeafMonster => settings.leaf_monster,
+            Split::BambooCreek => settings.bamboo_creek,
+            Split::SongshroomMarsh => settings.songshroom_marsh,
+            Split::ErlynaAndBrugaves => settings.erlyna_and_brugaves,
+            Split::_ClockworkCastle => settings.clockwork_castle,
+            Split::Watchmaker => settings.watchmaker,
+            Split::OneTwoThreeFour => settings._1234,
+            Split::DwellerOfStrifeP1 => settings.dweller_of_strife_p1,
+            Split::DwellerOfStrifeP2 => settings.dweller_of_strife_p2,
+            Split::SkywardShrine => settings.skyward_shrine,
+            Split::Council => settings.council,
+            Split::AirElemental => settings.air_elemental,
+            Split::Hydralion => settings.hydralion,
+            Split::Volcano => settings.volcano,
+            Split::Toadcano => settings.toadcano,
+            Split::RIPGarl => settings.rip_garl,
+            Split::SeaofStars => settings.sea_of_stars,
+            Split::Guardian => settings.guardian,
+            Split::DerelictFactory => settings.derelict_factory,
+            Split::Repine => settings.repine,
+            Split::CeruleanExpanse => settings.cerulean_expanse,
+            Split::LostOnesHamlet => settings.lost_ones_hamlet,
+            Split::Meduso => settings.meduso,
+            Split::LeavingforSpires => settings.leaving_for_spires,
+            Split::HuntingFields => settings.hunting_fields,
+            Split::Triumvirate => settings.triumvirate,
+            Split::JustKickIt => settings.just_kick_it,
+            Split::SkyBase => settings.sky_base,
+            Split::Catalyst => settings.catalyst,
+            Split::InfiniteAbyss => settings.infinite_abyss,
+            Split::DwellerOfDread => settings.dweller_of_dread,
+            Split::FleshmancersLair => settings.fleshmancers_lair,
+            Split::LeJugg => settings.le_jugg,
+            Split::NolanSimulator => settings.nolan_simulator,
+            Split::Reaper => settings.reaper,
+            Split::FFVIISimulator => settings.ffvii_simulator,
+            Split::ElysandarelleP1 => settings.elysandarelle_p1,
+            Split::ElysandarelleP2 => settings.elysandarelle_p2,
+            Split::WorldEater => settings.world_eater,
+        }
+    }
+}
+
+impl EnumSetMember for Split {
+    fn ordinal(&self) -> Option<u8> {
+        Some(u8::from(*self))
+    }
+}
+
 pub struct Running {
+    seen: EnumSet<Split>,
     relic_time: Watcher<f64>,
     paused: bool,
     loading: Watcher<bool>,
+    cutscene: Watcher<bool>,
+    level: Watcher<Level>,
+    number_of_items: Watcher<u32>,
+    inventory_generation: u32,
+    key_items: [(u32, u32); 4],
     encounter: Option<EncounterData>,
 }
 
 impl Running {
     pub fn new(time: f64) -> Self {
         let mut running = Self {
+            seen: EnumSet::empty(),
             relic_time: Watcher::new(),
             paused: false,
             loading: Watcher::new(),
+            cutscene: Watcher::new(),
+            level: Watcher::new(),
+            number_of_items: Watcher::new(),
+            inventory_generation: 0,
+            key_items: [(u32::MAX, u32::MAX); 4],
             encounter: None,
         };
         let _ = running.relic_time.update_infallible(time);
         running
     }
 }
-
-// #[derive(Debug, Clone, Copy)]
-// enum LoadRemoval {
-//     Pause,
-//     Resume,
-// }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Event {
@@ -354,18 +501,82 @@ impl<'s> EventHandler<'s> {
     }
 
     fn act(&mut self, action: Action) {
-        // TODO: handle overflow, somehow
-        let _ = self.actions.try_push(action);
+        if self.filter(&action) {
+            let _ = self.actions.try_push(action);
+        }
+    }
+
+    fn filter(&mut self, action: &Action) -> bool {
+        match action {
+            Action::SplitBoss => {
+                if self.settings.split == false {
+                    log!("Skipping encounter_boss: Disabled in settings");
+                    return false;
+                }
+            }
+            Action::Split(split) => {
+                if split.is_enabled(self.settings) == false {
+                    log!("Skipping {:?}: Disabled in settings", split);
+                    return false;
+                }
+            }
+            Action::Pause => {
+                if self.settings.remove_loads == false {
+                    return false;
+                }
+            }
+            Action::Resume => {
+                if self.settings.remove_loads == false {
+                    return false;
+                }
+            }
+            Action::StartCharacter | Action::StartRelic => {}
+        };
+        return true;
     }
 }
 
 impl Running {
+    pub fn act(&mut self, handler: &mut EventHandler<'_>, action: Action) {
+        if handler.filter(&action) {
+            self.act_internal(action);
+        }
+    }
+
+    fn act_internal(&mut self, action: Action) {
+        match action {
+            Action::SplitBoss => {
+                log!("Splitting: encounter_boss");
+                // timer::split();
+            }
+            Action::Split(split) => {
+                if self.seen.insert(&split) {
+                    log!("Splitting: {:?}", split);
+                    // timer::split();
+                } else {
+                    log!("Skipping {:?}: Duplicate split", split);
+                }
+            }
+            Action::Pause => {
+                self.paused = true;
+                // timer::pause_game_time();
+            }
+            Action::Resume => {
+                self.paused = false;
+                // timer::resume_game_time();
+            }
+            Action::StartCharacter | Action::StartRelic => {}
+        }
+    }
+
     pub fn tick(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
         self.load_removal(handler, process, data);
-        self.encounter_changes(handler, process, data);
+        self.check_encounter(handler, process, data);
+        self.check_level(handler, process, data);
+        self.check_key_items(handler, process, data);
 
         for action in handler.actions.drain(..) {
-            self.act(handler.settings, action);
+            self.act_internal(action);
         }
     }
 
@@ -396,12 +607,7 @@ impl Running {
         }
     }
 
-    fn encounter_changes(
-        &mut self,
-        handler: &mut EventHandler<'_>,
-        process: &Process,
-        data: &Data,
-    ) {
+    fn check_encounter(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
         match (&mut self.encounter, data.encounter_done(process)) {
             // we were in an encounter, and now it's done
             (Some(start), Some(true)) => {
@@ -440,29 +646,75 @@ impl Running {
         }
     }
 
-    // fn check_encounter_done(&mut self, process: &Process, data: &Data) -> bool {
-    //     match self.encounter {
-    //         Some(enc) => match data.resolve_encounter(process, enc) {
-    //             Some(enc) if enc.done => {
-    //                 self.encounter = None;
-    //                 return true;
-    //             }
-    //             Some(_) => {}
-    //             None => {
-    //                 self.encounter = None;
-    //             }
-    //         },
-    //         None => {
-    //             let Some((address, encounter)) = data.encounter(process) else {
-    //                 return false;
-    //             };
-    //             if encounter.boss && !encounter.done {
-    //                 self.encounter = Some(address);
-    //             }
-    //         }
-    //     };
-    //     return false;
-    // }
+    fn check_level(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
+        let progression = data.progression(process);
+
+        let cutscene = self.cutscene.update_infallible(progression.in_cutscene);
+        if cutscene.changed_to(&true) {
+            handler.accept(Event::CutsceneStart);
+        } else if cutscene.changed_to(&false) {
+            handler.accept(Event::CutsceneEnd);
+        }
+
+        let Some(level) = self.level.update(progression.level).filter(|o| o.changed()) else {
+            return;
+        };
+        handler.accept(Event::LevelChange {
+            from: level.old,
+            to: level.current,
+        });
+    }
+
+    fn check_key_items(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
+        let Some(owned_items_ptr) = data.owned_items(process) else {
+            return;
+        };
+        let Some(owned_items) = owned_items_ptr.read(process) else {
+            return;
+        };
+        let first = self.number_of_items.pair.is_none();
+        let owned = self.number_of_items.update_infallible(owned_items.size);
+
+        if first == false && owned.changed() == false {
+            return;
+        }
+
+        let generation = self.inventory_generation.saturating_add(1);
+        self.inventory_generation = generation;
+
+        let Some(owned_items) = owned_items_ptr.iter(process) else {
+            return;
+        };
+        for (item, _amount) in owned_items {
+            if let Some(item) = item.guid.chars(process).and_then(KeyItem::resolve) {
+                let idx = usize::from(u8::from(item));
+                match self.key_items[idx] {
+                    (u32::MAX, u32::MAX) => self.key_items[idx] = (generation, generation),
+                    (_, ref mut current) => *current = generation,
+                }
+            }
+        }
+
+        for (item, &(insert, current)) in self.key_items.iter().enumerate() {
+            if insert == u32::MAX {
+                continue;
+            }
+            let Ok(item) = u8::try_from(item) else {
+                unreachable!();
+            };
+            let Ok(item) = KeyItem::try_from_primitive(item) else {
+                continue;
+            };
+
+            if current == generation {
+                if insert == current {
+                    handler.accept(Event::PickedUpKeyItem(item));
+                }
+            } else {
+                handler.accept(Event::LostKeyItem(item));
+            }
+        }
+    }
 
     fn split_enemies(
         enemies: &[AnyEnemy],
@@ -478,6 +730,7 @@ impl Running {
         for enemy in enemies {
             match enemy {
                 AnyEnemy::Known(enemy) => known.push(*enemy),
+                #[allow(clippy::unit_arg)]
                 AnyEnemy::Unknown(name) => unknown.push(*name),
             }
         }
@@ -494,68 +747,6 @@ impl Running {
 
         if unknown.is_empty() == false {
             handler.accept(from_unknown(unknown, boss_encounter));
-        }
-    }
-
-    // fn level_changes(&mut self, data: &mut Data<'_>) -> Option<()> {
-    //     let progression = data.current_progression()?;
-
-    //     let loading = self.loading.update_infallible(progression.is_loading);
-    //     if loading.changed_to(&true) {
-    //         self.events.push(Event::LoadStart);
-    //     } else if loading.changed_to(&false) {
-    //         self.events.push(Event::LoadEnd);
-    //     }
-
-    //     let cutscene = self.cutscene.update_infallible(progression.is_in_cutscene);
-    //     if cutscene.changed_to(&true) {
-    //         self.events.push(Event::CutsceneStart);
-    //     } else if cutscene.changed_to(&false) {
-    //         self.events.push(Event::CutsceneEnd);
-    //     }
-
-    //     let level = self
-    //         .level
-    //         .update(progression.level)
-    //         .filter(|o| o.changed())?;
-
-    //     self.events.push(Event::LevelChange {
-    //         from: level.old,
-    //         to: level.current,
-    //     });
-
-    //     Some(())
-    // }
-
-    // fn key_item_changes(&mut self, process: &Process, data: &Data) {
-    //     for item in data.key_item_changes() {
-    //         let event = match item {
-    //             Change::PickedUp(item) => Event::PickedUpKeyItem(item),
-    //             Change::Lost(item) => Event::LostKeyItem(item),
-    //         };
-    //         self.events.push(event);
-    //     }
-    // }
-
-    pub fn act(&mut self, settings: &Settings, action: Action) {
-        match action {
-            Action::SplitBoss if settings.split => {
-                log!("Splitting");
-                timer::split();
-            }
-            Action::Split(split) => {
-                log!("Splitting: {:?}", split);
-                // timer::split();
-            }
-            Action::Pause if settings.remove_loads => {
-                self.paused = true;
-                timer::pause_game_time();
-            }
-            Action::Resume if settings.remove_loads => {
-                self.paused = false;
-                timer::resume_game_time();
-            }
-            _otherwise => {}
         }
     }
 }
