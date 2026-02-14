@@ -114,18 +114,3 @@ impl Progress {
         }
     }
 }
-
-pub struct Inventory {
-    pub owned_items: UnityPointer<3>,
-}
-
-impl Inventory {
-    pub fn new() -> Self {
-        Self {
-            owned_items: ptrpath1(
-                "InventoryManager",
-                ["instance", "ownedInventoryItems", "dictionary"],
-            ),
-        }
-    }
-}
