@@ -647,14 +647,18 @@ impl NotRunning {
     fn act(&self, settings: &Settings, action: Action) {
         match action {
             Action::StartCharacter if settings.start => {
-                log!("Starting timer on char select");
-                timer::start();
-                timer::pause_game_time();
+                log!("Starting timer on legacy char select");
+                if cfg!(not(dummy)) {
+                    timer::start();
+                    timer::pause_game_time();
+                }
             }
             Action::StartRelic if settings.relic_start => {
                 log!("Starting timer");
-                timer::start();
-                timer::pause_game_time();
+                if cfg!(not(dummy)) {
+                    timer::start();
+                    timer::pause_game_time();
+                }
             }
             _ => {}
         }

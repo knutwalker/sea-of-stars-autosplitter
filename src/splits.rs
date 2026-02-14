@@ -6,7 +6,7 @@ use crate::{
     mapping::{AnyEnemy, Enemy, KeyItem, Level, Unknown},
     utils::{EnumSet, EnumSetMember},
 };
-use asr::{Process, arrayvec::ArrayVec, watcher::Watcher};
+use asr::{Process, arrayvec::ArrayVec, timer, watcher::Watcher};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, TryFromPrimitive, IntoPrimitive)]
@@ -420,7 +420,7 @@ impl<'s> EventHandler<'s> {
                 self.act(Action::Split(split));
             }
             Event::EncounterEnd(enemy, boss) => {
-                if boss && self.settings.split {
+                if boss {
                     self.act(Action::SplitBoss);
                 }
                 use Enemy::*;
@@ -457,7 +457,7 @@ impl<'s> EventHandler<'s> {
                 self.act(Action::Split(split));
             }
             Event::EncountersEnd(enemies, boss) => {
-                if boss && self.settings.split {
+                if boss {
                     self.act(Action::SplitBoss);
                 }
                 for enemy in enemies.clone() {
@@ -547,23 +547,31 @@ impl Running {
         match action {
             Action::SplitBoss => {
                 log!("Splitting: encounter_boss");
-                // timer::split();
+                if cfg!(not(dummy)) {
+                    timer::split();
+                }
             }
             Action::Split(split) => {
                 if self.seen.insert(&split) {
                     log!("Splitting: {:?}", split);
-                    // timer::split();
+                    if cfg!(not(dummy)) {
+                        timer::split();
+                    }
                 } else {
                     log!("Skipping {:?}: Duplicate split", split);
                 }
             }
             Action::Pause => {
                 self.paused = true;
-                // timer::pause_game_time();
+                if cfg!(not(dummy)) {
+                    timer::pause_game_time();
+                }
             }
             Action::Resume => {
                 self.paused = false;
-                // timer::resume_game_time();
+                if cfg!(not(dummy)) {
+                    timer::resume_game_time();
+                }
             }
             Action::StartCharacter | Action::StartRelic => {}
         }
