@@ -1,4 +1,3 @@
-#[cfg(debugger)]
 use asr::string::ArrayString;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
@@ -222,7 +221,7 @@ impl From<ArrayString<32>> for AnyEnemy {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Level {
     FleshmancersLair,
     Skyland,
@@ -261,6 +260,12 @@ pub enum Level {
     WaterTemple,
     WizardLab,
     WorldEeater,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum AnyLevel {
+    Known(Level),
+    Unknown(ArrayString<32>),
 }
 
 impl Level {

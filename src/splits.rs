@@ -3,7 +3,7 @@ use core::num::NonZeroU32;
 use crate::{
     Action, Settings,
     data::{Data, EncounterData, SpeedrunRelic},
-    mapping::{AnyEnemy, Enemy, KeyItem, Level, Unknown},
+    mapping::{AnyEnemy, AnyLevel, Enemy, KeyItem, Level, Unknown},
     utils::{EnumSet, EnumSetMember},
 };
 use asr::{Process, arrayvec::ArrayVec, timer, watcher::Watcher};
@@ -206,7 +206,7 @@ impl Split {
             Split::BambooCreek => settings.bamboo_creek,
             Split::SongshroomMarsh => settings.songshroom_marsh,
             Split::ErlynaAndBrugaves => settings.erlyna_and_brugaves,
-            Split::_ClockworkCastle => settings.clockwork_castle,
+            Split::_ClockworkCastle => false,
             Split::Watchmaker => settings.watchmaker,
             Split::OneTwoThreeFour => settings._1234,
             Split::DwellerOfStrifeP1 => settings.dweller_of_strife_p1,
@@ -257,7 +257,7 @@ pub struct Running {
     paused: bool,
     loading: Watcher<bool>,
     cutscene: Watcher<bool>,
-    level: Watcher<Level>,
+    level: Watcher<AnyLevel>,
     number_of_items: Watcher<u32>,
     inventory_generation: u32,
     key_items: [(u32, u32); 4],
@@ -671,10 +671,10 @@ impl Running {
         let Some(level) = self.level.update(progression.level).filter(|o| o.changed()) else {
             return;
         };
-        handler.accept(Event::LevelChange {
-            from: level.old,
-            to: level.current,
-        });
+        log!("Level changed from {:?} to {:?}", level.old, level.current);
+        if let (AnyLevel::Known(from), AnyLevel::Known(to)) = (level.old, level.current) {
+            handler.accept(Event::LevelChange { from, to })
+        }
     }
 
     fn check_key_items(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {

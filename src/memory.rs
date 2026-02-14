@@ -102,14 +102,14 @@ impl Combat {
 }
 
 pub struct Progress {
-    pub current_level: UnityPointer<2>,
+    pub current_level: UnityPointer<3>,
     pub is_in_cutscene: UnityPointer<2>,
 }
 
 impl Progress {
     pub fn new() -> Self {
         Self {
-            current_level: ptrpath1("LevelManager", ["instance", "currentLevel"]),
+            current_level: ptrpath1("LevelManager", ["instance", "currentLevelInfo", "level"]),
             is_in_cutscene: ptrpath1(
                 "CutsceneManager",
                 ["instance", "<IsInCutscene>k__BackingField"],

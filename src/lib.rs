@@ -321,10 +321,9 @@ pub struct Settings {
     #[default = true]
     erlyna_and_brugaves: bool,
 
-    /// Split when talking to ??? in the clock tower (not implemented)
-    #[default = false]
-    clockwork_castle: bool,
-
+    // /// Split when talking to ??? in the clock tower (not implemented)
+    // #[default = false]
+    // clockwork_castle: bool,
     /// Split when the battle against One, Two, Three, and Four starts
     #[default = false]
     watchmaker: bool,

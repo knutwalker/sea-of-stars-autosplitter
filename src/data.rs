@@ -6,7 +6,7 @@ use asr::{
 use bytemuck::AnyBitPattern;
 
 use crate::{
-    mapping::{AnyEnemy, Enemy, Level},
+    mapping::{AnyEnemy, AnyLevel, Enemy, Level},
     memory::{
         Combat, Encounter, EnemyCombatActor, Inventory, Loading, Progress, Relic, TitleScreen,
     },
@@ -47,7 +47,7 @@ pub struct EncounterData {
 
 pub struct Progression {
     pub in_cutscene: bool,
-    pub level: Option<Level>,
+    pub level: Option<AnyLevel>,
 }
 
 #[derive(Copy, Clone, Debug, AnyBitPattern)]
@@ -171,8 +171,12 @@ impl Data {
             .progress
             .current_level
             .read::<Reference>(process, &self.asm)
-            .and_then(|o| o.guid.chars(process))
-            .and_then(Level::resolve);
+            .and_then(|o| {
+                o.guid.chars(process).map(|l| match Level::resolve(l) {
+                    Some(l) => AnyLevel::Known(l),
+                    None => AnyLevel::Unknown(o.guid.to_string(process).unwrap_or_default()),
+                })
+            });
 
         let in_cutscene = self
             .progress
