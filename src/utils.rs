@@ -67,6 +67,10 @@ impl<T: EnumSetMember> EnumSet<T> {
         Self(0, PhantomData)
     }
 
+    pub const fn from_bits(bits: u128) -> Self {
+        Self(bits, PhantomData)
+    }
+
     pub fn insert(&mut self, item: &T) -> bool {
         let Some(ord) = item.ordinal() else {
             return false;
@@ -81,7 +85,7 @@ impl<T: EnumSetMember> EnumSet<T> {
         return previous == 0;
     }
 
-    pub fn contains(&mut self, item: &T) -> bool {
+    pub fn contains(&self, item: &T) -> bool {
         let Some(ord) = item.ordinal() else {
             return false;
         };

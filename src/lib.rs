@@ -12,7 +12,6 @@ use asr::{
     timer::{self, TimerState},
     watcher::Watcher,
 };
-use num_enum::TryFromPrimitive;
 
 #[macro_export]
 macro_rules! log {
@@ -666,7 +665,7 @@ impl NotRunning {
 }
 
 asr::async_main!(stable);
-asr::panic_handler!();
+asr::panic_handler!(print: always);
 
 async fn main() {
     asr::set_tick_rate(TICK_RATE);
@@ -676,10 +675,7 @@ async fn main() {
         s.update();
 
         let mut splits = EnumSet::<Split>::empty();
-        for idx in u8::MIN..u8::MAX {
-            let Ok(split) = Split::try_from_primitive(idx) else {
-                break;
-            };
+        for split in Split::all() {
             if split.filter(&s) {
                 let _ = splits.insert(&split);
             }
@@ -733,5 +729,16 @@ struct SplitsDebug(u128);
 impl core::fmt::Debug for SplitsDebug {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{:X}", self.0)
+    }
+}
+
+#[allow(dead_code)]
+fn decode(settings: &str) {
+    let settings = u128::from_str_radix(settings, 16).unwrap();
+    let splits = EnumSet::from_bits(settings);
+    for split in Split::all() {
+        if splits.contains(&split) {
+            log!("{:?}", split);
+        }
     }
 }

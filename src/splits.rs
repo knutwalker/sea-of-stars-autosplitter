@@ -107,6 +107,10 @@ pub enum Split {
 }
 
 impl Split {
+    pub fn all() -> impl Iterator<Item = Split> {
+        (u8::MIN..u8::MAX).map_while(|o| Split::try_from_primitive(o).ok())
+    }
+
     pub fn is_enabled(self, settings: &Settings) -> bool {
         if settings.split && self.compat() {
             return true;
