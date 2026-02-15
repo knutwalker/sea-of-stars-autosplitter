@@ -1,4 +1,4 @@
-use core::num::NonZeroU32;
+use core::{fmt::Write, num::NonZeroU32};
 
 use crate::{
     Action, Settings,
@@ -6,7 +6,7 @@ use crate::{
     mapping::{Enemy, Level},
     utils::{EnumSet, EnumSetMember},
 };
-use asr::{Process, arrayvec::ArrayVec, timer, watcher::Watcher};
+use asr::{Process, arrayvec::ArrayVec, string::ArrayString, timer, watcher::Watcher};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, TryFromPrimitive, IntoPrimitive)]
@@ -136,6 +136,7 @@ pub struct Running {
     loading: Watcher<bool>,
     cutscene: Watcher<bool>,
     level: Watcher<Level>,
+    full_level: Watcher<ArrayString<32>>,
     encounter: Option<EncounterData>,
 }
 
@@ -148,6 +149,7 @@ impl Running {
             loading: Watcher::new(),
             cutscene: Watcher::new(),
             level: Watcher::new(),
+            full_level: Watcher::new(),
             encounter: None,
         };
         let _ = running.relic_time.update_infallible(time);
@@ -180,15 +182,15 @@ impl<'s> EventHandler<'s> {
         }
     }
 
-    fn accept(&mut self, ev: Event) {
+    fn accept(&mut self, ev: Event, time: f64) {
         match ev {
             Event::LoadStart | Event::LoadEnd | Event::CutsceneStart => {}
-            _ => log!("Event: {:?}", ev),
+            _ => log!("({:.02}) Event: {:?}", time, ev),
         }
 
         match ev {
-            Event::LoadStart => self.act(Action::Pause),
-            Event::LoadEnd => self.act(Action::Resume),
+            Event::LoadStart => self.act(Action::Pause, time),
+            Event::LoadEnd => self.act(Action::Resume, time),
             Event::LevelChange { from, to } => {
                 match (from, to) {
                     (Level::FleshmancersLair, Level::WorldEeater) => {
@@ -203,11 +205,11 @@ impl<'s> EventHandler<'s> {
                     Some(split) => split,
                     None => return,
                 };
-                self.act(Action::Split(split));
+                self.act(Action::Split(split), time);
             }
             Event::EncounterEnd(enemy, boss) => {
                 if boss {
-                    self.act(Action::SplitBoss);
+                    self.act(Action::SplitBoss, time);
                 }
                 use Enemy::*;
                 let split = match enemy {
@@ -239,14 +241,14 @@ impl<'s> EventHandler<'s> {
                     One | Two | Three | Four | Erlina | Brugaves | Casugin | Abstarak
                     | Rachater => return,
                 };
-                self.act(Action::Split(split));
+                self.act(Action::Split(split), time);
             }
             Event::EncountersEnd(enemies, boss) => {
                 if boss {
-                    self.act(Action::SplitBoss);
+                    self.act(Action::SplitBoss, time);
                 }
                 for enemy in enemies.iter() {
-                    self.accept(Event::EncounterEnd(*enemy, false));
+                    self.accept(Event::EncounterEnd(*enemy, false), time);
                 }
                 use Enemy::*;
                 let split = match enemies.as_slice() {
@@ -257,28 +259,31 @@ impl<'s> EventHandler<'s> {
                     [Casugin, Abstarak, Rachater] => Split::Triumvirate,
                     _ => return,
                 };
-                self.act(Action::Split(split));
+                self.act(Action::Split(split), time);
             }
         }
     }
 
-    fn act(&mut self, action: Action) {
-        if self.filter(&action) {
+    fn act(&mut self, action: Action, time: f64) {
+        if self.filter(&action, time) {
             let _ = self.actions.try_push(action);
         }
     }
 
-    fn filter(&mut self, action: &Action) -> bool {
+    fn filter(&mut self, action: &Action, time: f64) -> bool {
         match action {
             Action::SplitBoss => {
                 if self.settings.split == false {
-                    log!("Skipping encounter_boss: Disabled in settings");
+                    log!(
+                        "({:.02}) Skipping encounter_boss: Disabled in settings",
+                        time
+                    );
                     return false;
                 }
             }
             Action::Split(split) => {
                 if split.is_enabled(self.settings) == false {
-                    log!("Skipping {:?}: Disabled in settings", split);
+                    log!("({:.02}) Skipping {:?}: Disabled in settings", time, split);
                     return false;
                 }
             }
@@ -299,28 +304,28 @@ impl<'s> EventHandler<'s> {
 }
 
 impl Running {
-    pub fn act(&mut self, handler: &mut EventHandler<'_>, action: Action) {
-        if handler.filter(&action) {
-            self.act_internal(action);
+    pub fn act(&mut self, handler: &mut EventHandler<'_>, action: Action, time: f64) {
+        if handler.filter(&action, time) {
+            self.act_internal(action, time);
         }
     }
 
-    fn act_internal(&mut self, action: Action) {
+    fn act_internal(&mut self, action: Action, time: f64) {
         match action {
             Action::SplitBoss => {
-                log!("Splitting: encounter_boss");
+                log!("({:.02}) Splitting: encounter_boss", time);
                 if cfg!(not(dummy)) {
                     timer::split();
                 }
             }
             Action::Split(split) => {
                 if self.seen.insert(&split) {
-                    log!("Splitting: {:?}", split);
+                    log!("({:.02}) Splitting: {:?}", time, split);
                     if cfg!(not(dummy)) {
                         timer::split();
                     }
                 } else {
-                    log!("Skipping {:?}: Duplicate split", split);
+                    log!("({:.02}) Skipping {:?}: Duplicate split", time, split);
                 }
             }
             Action::Pause => {
@@ -340,59 +345,87 @@ impl Running {
     }
 
     pub fn tick(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
-        self.load_removal(handler, process, data);
-        self.check_encounter(handler, process, data);
-        self.check_level(handler, process, data);
+        let time = self.load_removal(handler, process, data).unwrap_or(0.0);
+        self.check_encounter(handler, process, data, time);
+        self.check_level(handler, process, data, time);
 
         for action in handler.actions.drain(..) {
-            self.act_internal(action);
+            self.act_internal(action, time);
         }
     }
 
-    fn load_removal(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
+    fn load_removal(
+        &mut self,
+        handler: &mut EventHandler<'_>,
+        process: &Process,
+        data: &Data,
+    ) -> Option<f64> {
         if handler.settings.remove_loads == false {
-            return;
+            return None;
         }
         if handler.settings.custom_load_remover == false
             && let Some(SpeedrunRelic::Active(time)) = data.speedrun_time(process)
         {
             let relic_time = self.relic_time.update_infallible(time);
+            let time = relic_time.current;
             match (relic_time.increased(), self.paused) {
                 // relic and lrt are both running
                 (true, false) => {}
                 // relic and lrt are both paused
                 (false, true) => {}
                 // relic paused, lrt is running, need to pause lrt
-                (false, false) => handler.accept(Event::LoadStart),
+                (false, false) => handler.accept(Event::LoadStart, time),
                 // relic is running, lrt is paused, need to unpause lrt
-                (true, true) => handler.accept(Event::LoadEnd),
-            }
+                (true, true) => handler.accept(Event::LoadEnd, time),
+            };
+            return Some(time);
         } else if handler.settings.custom_load_remover == true {
             match self.loading.update(data.is_loading(process)) {
-                Some(l) if l.changed_to(&false) => handler.accept(Event::LoadEnd),
-                Some(l) if l.changed_to(&true) => handler.accept(Event::LoadStart),
+                Some(l) if l.changed_to(&false) => handler.accept(Event::LoadEnd, 0.0),
+                Some(l) if l.changed_to(&true) => handler.accept(Event::LoadStart, 0.0),
                 _ => {}
-            }
+            };
         }
+        return None;
     }
 
-    fn check_encounter(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
+    fn check_encounter(
+        &mut self,
+        handler: &mut EventHandler<'_>,
+        process: &Process,
+        data: &Data,
+        time: f64,
+    ) {
         match (&mut self.encounter, data.encounter_done(process)) {
             // we were in an encounter, and now it's done
             (Some(start), Some(true)) => {
                 match start.enemies.as_slice() {
                     [] => {}
-                    [single] => handler.accept(Event::EncounterEnd(*single, start.boss)),
-                    _ => handler.accept(Event::EncountersEnd(start.enemies.take(), start.boss)),
+                    [single] => handler.accept(Event::EncounterEnd(*single, start.boss), time),
+                    _ => {
+                        handler.accept(Event::EncountersEnd(start.enemies.take(), start.boss), time)
+                    }
                 }
                 self.encounter = None;
             }
             // we weren't in an encounter, and now we are
             (None, Some(false)) => {
-                let Some(mut enemies) = data.encounter_data(process) else {
+                let Some(mut enemies) = data.encounter_data(process, time) else {
                     return;
                 };
                 enemies.enemies.sort_unstable();
+                if cfg!(vars) {
+                    let mut buf = ArrayString::<128>::new();
+                    for enemy in enemies.enemies.iter() {
+                        if buf.is_empty() == false {
+                            let _ = buf.try_push(',');
+                        };
+                        let _ = write!(&mut buf, "{:?}", enemy);
+                    }
+                    if buf.is_empty() == false {
+                        log!("({:.02}) Encounter: {}", time, buf.as_str());
+                    }
+                }
                 self.encounter = Some(enemies);
             }
             // we thought we were in an encounter, but we're not
@@ -404,15 +437,39 @@ impl Running {
         }
     }
 
-    fn check_level(&mut self, handler: &mut EventHandler<'_>, process: &Process, data: &Data) {
+    fn check_level(
+        &mut self,
+        handler: &mut EventHandler<'_>,
+        process: &Process,
+        data: &Data,
+        time: f64,
+    ) {
         let progression = data.progression(process);
 
         let cutscene = self.cutscene.update_infallible(progression.in_cutscene);
         if cutscene.changed_to(&true) {
-            handler.accept(Event::CutsceneStart);
+            handler.accept(Event::CutsceneStart, time);
         }
 
         let Some(level) = progression.level else {
+            return;
+        };
+        if cfg!(vars) {
+            if level.0.is_empty() == false {
+                let full_level = self.full_level.update_infallible(level.0);
+                if full_level.changed() {
+                    timer::set_variable("level", full_level.current.as_str());
+                    log!(
+                        "({:.02}) Level: {:?} -> {:?}",
+                        time,
+                        full_level.old,
+                        full_level.current
+                    );
+                }
+            }
+        }
+
+        let Some(level) = level.1 else {
             return;
         };
         let level = self.level.update_infallible(level);
@@ -420,11 +477,25 @@ impl Running {
             return;
         }
 
-        log!("Level changed from {:?} to {:?}", level.old, level.current);
-        handler.accept(Event::LevelChange {
-            from: level.old,
-            to: level.current,
-        })
+        if cfg!(vars) {
+            let mut buf = ArrayString::<32>::new();
+            let _ = write!(&mut buf, "{:?}", level.current);
+            timer::set_variable("level_name", buf.as_str());
+        }
+
+        log!(
+            "({:.02}) Level changed from {:?} to {:?}",
+            time,
+            level.old,
+            level.current
+        );
+        handler.accept(
+            Event::LevelChange {
+                from: level.old,
+                to: level.current,
+            },
+            time,
+        )
     }
 }
 

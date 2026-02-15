@@ -2,11 +2,10 @@ use asr::{
     Process,
     arrayvec::ArrayVec,
     game_engine::unity::il2cpp::{Module, Version},
+    string::ArrayString,
+    timer,
 };
-#[cfg(vars)]
-use asr::{string::ArrayString, timer};
 use bytemuck::AnyBitPattern;
-#[cfg(vars)]
 use core::fmt::Write;
 
 use crate::{
@@ -48,7 +47,7 @@ pub struct EncounterData {
 
 pub struct Progression {
     pub in_cutscene: bool,
-    pub level: Option<Level>,
+    pub level: Option<(ArrayString<32>, Option<Level>)>,
 }
 
 #[derive(Copy, Clone, Debug, AnyBitPattern)]
@@ -130,13 +129,13 @@ impl Data {
         return self.combat.done.read(process, &self.asm);
     }
 
-    pub fn encounter_data(&self, process: &Process) -> Option<EncounterData> {
+    pub fn encounter_data(&self, process: &Process, time: f64) -> Option<EncounterData> {
+        let mut buf = ArrayString::<200>::new();
         let read_enemy = |(_idx, ptr): (usize, Pointer<EnemyCombatActor>)| -> Option<Enemy> {
             let actor = self.combat.actor.read(process, ptr.addr()).ok()?;
             let data = self.combat.char.read(process, actor.data.addr()).ok()?;
 
-            #[cfg(vars)]
-            {
+            if cfg!(vars) {
                 let guid = data.guid.to_string::<_, 32>(process).unwrap_or_default();
                 let key = match _idx {
                     0 => "enemy_0_id",
@@ -149,11 +148,15 @@ impl Data {
                     _ => "enemy_x_id",
                 };
                 timer::set_variable(key, guid.as_str());
+
+                if buf.is_empty() == false {
+                    let _ = buf.try_push(',');
+                };
+                let _ = write!(&mut buf, "{}", guid.as_str());
             }
             let enemy = Enemy::resolve(data.guid.chars(process)?)?;
 
-            #[cfg(vars)]
-            {
+            if cfg!(vars) {
                 let key = match _idx {
                     0 => "enemy_0_name",
                     1 => "enemy_1_name",
@@ -185,8 +188,9 @@ impl Data {
                 otherwise => otherwise,
             })
             .collect::<Enemies>();
-        if enemies.is_empty() {
-            return None;
+
+        if cfg!(vars) {
+            log!("({:.02}) enc: {}", time, buf.as_str());
         }
         Some(EncounterData {
             enemies,
@@ -199,23 +203,10 @@ impl Data {
             .progress
             .current_level
             .read::<Reference>(process, &self.asm)
-            .and_then(|o| {
-                #[cfg(vars)]
-                {
-                    let level_guid = o.guid.to_string::<_, 32>(process).unwrap_or_default();
-                    timer::set_variable("level", level_guid.as_str());
-                }
-                o.guid.chars(process).and_then(Level::resolve)
+            .map(|o| {
+                let level_guid = o.guid.to_string::<_, 32>(process).unwrap_or_default();
+                (level_guid, o.guid.chars(process).and_then(Level::resolve))
             });
-
-        #[cfg(vars)]
-        {
-            if let Some(ref level) = level {
-                let mut buf = ArrayString::<32>::new();
-                let _ = write!(&mut buf, "{:?}", level);
-                timer::set_variable("level_name", buf.as_str());
-            }
-        }
 
         let in_cutscene = self
             .progress
@@ -223,8 +214,9 @@ impl Data {
             .u32(process, &self.asm)
             .is_some_and(|o| o != 0);
 
-        #[cfg(vars)]
-        timer::set_variable("in_cutscene", if in_cutscene { "true" } else { "false" });
+        if cfg!(vars) {
+            timer::set_variable("in_cutscene", if in_cutscene { "true" } else { "false" });
+        }
 
         Progression { in_cutscene, level }
     }

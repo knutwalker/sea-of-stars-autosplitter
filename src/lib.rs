@@ -316,7 +316,7 @@ impl<'s> State<'s> {
         // always resume game timer after a disconnect
         // in case a crash happened during a load
         if let Timer::Running(ref mut r) = self.timer {
-            r.act(&mut self.handler, Action::Resume);
+            r.act(&mut self.handler, Action::Resume, 0.0);
         }
     }
 
